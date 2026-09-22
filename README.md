@@ -4,19 +4,21 @@ Aplikasi Laravel untuk absensi siswa, penilaian sikap, poin prestasi/pelanggaran
 
 ## Fitur MVP
 
-- Login role admin, guru, siswa, dan orang tua.
+- Login username/email dengan RBAC untuk superadmin, TU, guru, siswa, dan orang tua.
 - Admin membuat akun pengguna.
 - Admin mengatur kelas.
 - Admin menghubungkan orang tua dengan siswa.
 - Admin mengatur lokasi sekolah, radius absensi, dan jam masuk.
 - Admin mendaftarkan perangkat fingerprint IoT.
 - Siswa absen dari dashboard dengan validasi lokasi browser.
+- Radius maksimum dan toleransi akurasi GPS dapat diatur admin.
 - Guru memberi penilaian sikap.
 - Guru memberi poin prestasi, pencapaian, atau pelanggaran.
 - Sistem menghitung point general, point sikap, point absen, dan point prestasi.
 - Sistem memberi label siswa otomatis.
 - Orang tua melihat ringkasan poin dan label anak.
 - Export laporan absensi dan raport sikap dalam format CSV.
+- Keuangan siswa: SPP, uang bangunan, tagihan kelas, pembayaran manual TU, dan tunggakan lintas kelas.
 - API fingerprint IoT di `POST /api/iot/attendance`.
 
 ## Dokumentasi
@@ -26,6 +28,8 @@ Dokumentasi project ada di folder `docs`:
 - `docs/project-overview.md`
 - `docs/task-breakdown.md`
 - `docs/iot-fingerprint-integration.md`
+- `docs/finance.md`
+- `docs/account-rbac.md`
 
 ## Setup Development
 
@@ -35,10 +39,10 @@ Install dependency PHP:
 composer install
 ```
 
-Siapkan environment:
+Siapkan environment (Linux/macOS):
 
 ```bash
-copy .env.example .env
+cp .env.example .env
 php artisan key:generate
 ```
 
@@ -72,6 +76,10 @@ Seeder membuat akun admin:
 
 ```text
 Email: admin@sekolah.test
+Username: admin
+Password: password123
+
+Email TU: tu@sekolah.test
 Password: password123
 ```
 

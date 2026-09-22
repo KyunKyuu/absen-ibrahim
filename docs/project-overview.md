@@ -12,12 +12,13 @@ Project ini adalah aplikasi Laravel untuk kebutuhan sekolah dalam mengelola:
 - Label otomatis agar guru lebih aware terhadap siswa yang butuh perhatian.
 - Export laporan absensi dan raport sikap.
 
-Sistem memakai pendekatan role-based access dengan empat jenis pengguna:
+Sistem memakai pendekatan role-based access dengan lima jenis pengguna:
 
 - Admin
 - Guru
 - Siswa
 - Orang tua
+- Tata Usaha (TU)
 
 Untuk versi awal, akun guru, siswa, dan orang tua dibuat oleh admin. Pengguna tidak melakukan registrasi mandiri.
 
@@ -47,7 +48,7 @@ Admin bertanggung jawab mengelola data utama sistem.
 Fitur admin:
 
 - Login ke dashboard admin.
-- Membuat akun admin, guru, siswa, dan orang tua.
+- Membuat akun superadmin, TU, guru, siswa, orang tua, dan role kustom.
 - Mengatur kelas.
 - Menghubungkan akun orang tua dengan akun siswa.
 - Mengatur lokasi sekolah untuk validasi absensi GPS.
@@ -82,6 +83,8 @@ Fitur siswa:
 - Melihat poin absensi.
 - Melihat poin prestasi.
 - Melihat label perkembangan diri.
+- Melihat kelas, ringkasan kehadiran, progres level, dan timeline aktivitas per semester/kelas.
+- Tidak memiliki akses ke data nominal keuangan.
 
 ### Orang Tua
 
@@ -93,21 +96,31 @@ Fitur orang tua:
 - Melihat anak yang sudah dihubungkan oleh admin.
 - Melihat poin anak.
 - Melihat label perkembangan anak.
+- Melihat profil perkembangan, kehadiran, histori kelas, dan timeline anak.
+- Tidak memiliki akses ke data nominal keuangan anak.
+
+### Tata Usaha (TU)
+
+- Membuat master dan menerbitkan tagihan sekolah.
+- Mencatat pembayaran atau angsuran per siswa.
+- Memverifikasi usulan biaya dinamis dari wali kelas.
+- Memantau tunggakan yang tetap terbawa saat siswa berpindah kelas.
 
 ## Modul Utama
 
 ### 1. Authentication dan Role
 
-Sistem memakai login email dan password.
+Sistem memakai login username atau email dan password. Akun hasil import wajib mengganti password awal saat login pertama.
 
-Kolom role disimpan langsung di tabel `users` dengan nilai:
+Role utama tersimpan di akun dan terhubung ke tabel RBAC role/permission. Role sistem awal:
 
-- `admin`
+- `superadmin`
+- `tu`
 - `teacher`
 - `student`
 - `parent`
 
-Middleware `role` dipakai untuk membatasi akses route berdasarkan role pengguna.
+Superadmin dapat membuat role kustom dan memilih permission. Middleware permission membatasi route sesuai kewenangan akun.
 
 ### 2. Data Master
 
@@ -132,16 +145,18 @@ Alur:
 1. Siswa klik tombol absensi.
 2. Browser membaca latitude dan longitude siswa.
 3. Sistem membandingkan lokasi siswa dengan lokasi sekolah.
-4. Jika siswa berada dalam radius sekolah, absensi diterima.
-5. Jika di luar radius, absensi ditolak.
-6. Sistem menentukan status tepat waktu atau terlambat.
-7. Sistem membuat transaksi poin absensi.
+4. Sistem menolak hasil GPS yang tingkat galatnya melebihi batas admin.
+5. Jika siswa berada dalam radius maksimum sekolah, absensi diterima.
+6. Jika di luar radius, absensi ditolak.
+7. Sistem menentukan status tepat waktu atau terlambat.
+8. Sistem membuat transaksi poin absensi.
 
 Parameter yang digunakan:
 
 - Latitude sekolah
 - Longitude sekolah
 - Radius absensi dalam meter
+- Maksimum galat/akurasi GPS dalam meter
 - Jam masuk
 - Batas tepat waktu
 

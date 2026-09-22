@@ -2,14 +2,19 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
-    public function test_root_redirects_guest_to_login(): void
+    use RefreshDatabase;
+
+    public function test_root_renders_public_school_landing_page(): void
     {
         $response = $this->get('/');
 
-        $response->assertRedirect('/login');
+        $response->assertOk()
+            ->assertSeeText('Tumbuh dalam iman, ilmu, dan adab.')
+            ->assertSee('Portal Sekolah');
     }
 }

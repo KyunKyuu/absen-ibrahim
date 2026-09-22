@@ -19,16 +19,20 @@ Status: Selesai untuk MVP
 
 - Login pengguna.
 - Logout pengguna.
-- Role admin, guru, siswa, orang tua.
+- RBAC superadmin, TU, guru, siswa, orang tua, dan role kustom.
 - Admin membuat akun pengguna.
 - Admin membuat akun siswa dengan NIS.
 - Admin membuat akun guru.
 - Admin membuat akun orang tua.
 - Admin menghubungkan orang tua dengan siswa.
+- Login menggunakan username atau email.
+- Superadmin membuat role dan mengatur permission RBAC.
+- Superadmin membuat akun dan mengganti role akun.
+- Import maksimal 1.000 akun dari Google Sheet publik/shared-link.
+- Password default import dan kewajiban mengganti password saat login pertama.
 
 Task lanjutan:
 
-- Fitur ubah password saat login pertama.
 - Reset password oleh admin.
 - Status aktif/nonaktif akun di UI.
 - Import akun siswa dari Excel.
@@ -47,12 +51,12 @@ Sudah selesai:
 - Radius absensi.
 - Jam masuk.
 - Batas tepat waktu.
+- Penetapan wali kelas.
 
 Task lanjutan:
 
 - CRUD mata pelajaran.
 - Mapping guru ke kelas dan mata pelajaran.
-- Wali kelas.
 - Semester aktif.
 - Tahun ajaran aktif dari UI.
 - Import data kelas dan siswa dari Excel.
@@ -67,6 +71,9 @@ Sudah selesai:
 - Browser mengambil latitude dan longitude.
 - Sistem menghitung jarak ke sekolah.
 - Sistem menolak absensi di luar radius.
+- Admin mengatur radius maksimum dan batas galat GPS.
+- Server memvalidasi akurasi GPS, role siswa, dan jam operasional.
+- Dashboard menampilkan status absensi hari ini agar tidak submit berulang.
 - Sistem menentukan ontime atau terlambat.
 - Sistem membuat poin absensi otomatis.
 - Data absensi tersimpan di tabel `attendances`.
@@ -192,6 +199,9 @@ Sudah selesai:
 - Metrik absensi hari ini.
 - Metrik siswa prioritas.
 - Ringkasan poin siswa.
+- Profil perkembangan bergaya gamifikasi untuk siswa dan orang tua.
+- Filter aktivitas berdasarkan semester dan riwayat kelas.
+- Snapshot kelas/semester pada data absensi.
 
 Task lanjutan:
 
@@ -222,18 +232,25 @@ Task lanjutan:
 
 ## Phase 11 - Security dan Audit
 
-Status: Belum selesai
+Status: Sebagian selesai
+
+Sudah selesai:
+
+- Login dibatasi lima percobaan per menit.
+- Sesi akun nonaktif diputus pada request berikutnya.
+- Token API perangkat tidak disimpan dalam payload log.
+- Export CSV dilindungi dari formula injection.
+- Menu dan endpoint nominal keuangan tidak dapat diakses siswa/orang tua.
+- Wali kelas hanya dapat melihat usulannya sendiri, bukan tagihan/pembayaran siswa.
 
 Task:
 
 - Audit log perubahan nilai dan poin.
 - Audit log login.
-- Rate limit login.
+- Pengaturan rate limit login yang dapat dikustomisasi.
 - Ubah password pertama kali.
 - Validasi permission lebih detail untuk guru.
 - Guru hanya melihat kelas/mata pelajaran yang diajar.
-- Orang tua hanya melihat anak sendiri.
-- Siswa hanya melihat data sendiri.
 - Hardening API IoT dengan HMAC signature.
 - Rotasi token perangkat IoT.
 
@@ -246,18 +263,45 @@ Sudah selesai:
 - Test route redirect guest.
 - Test kalkulasi label poin.
 - Test endpoint IoT fingerprint.
+- Test absensi GPS, radius, jam operasional, dan pencegahan absen ganda.
+- Test validasi poin prestasi/pelanggaran.
+- Test alur keuangan, otorisasi, angsuran, dan tunggakan.
 - Laravel Pint formatter.
 
 Task lanjutan:
 
 - Test login role.
 - Test admin membuat akun.
-- Test siswa absen GPS.
-- Test radius absensi.
 - Test guru input sikap.
-- Test guru input prestasi.
 - Test export CSV.
 - Browser test untuk halaman utama.
+
+## Phase 13 - Keuangan Siswa
+
+Status: Selesai untuk MVP
+
+Sudah selesai:
+
+- Role Tata Usaha (TU).
+- Master jenis tagihan seperti SPP dan uang bangunan.
+- Penerbitan tagihan massal per kelas dan periode tanpa duplikasi.
+- Pembayaran manual penuh atau sebagian per siswa oleh TU.
+- Validasi agar pembayaran tidak melebihi sisa tagihan.
+- Usulan biaya dinamis oleh wali kelas.
+- Verifikasi atau penolakan usulan oleh TU sebelum terbit.
+- Mode nominal per siswa dan target kolektif kelas.
+- Histori kelas dan tunggakan yang terbawa saat naik/pindah kelas.
+- Akses nominal/tagihan hanya untuk admin dan TU.
+
+Task lanjutan:
+
+- Nomor dan cetak kuitansi.
+- Audit pembatalan/koreksi pembayaran.
+- Diskon, beasiswa, denda, dan dispensasi.
+- Rekonsiliasi bank atau payment gateway.
+- Pengingat tagihan melalui WhatsApp/email.
+- Promosi kelas secara massal.
+- Laporan kas, piutang, dan tunggakan dalam PDF/Excel.
 
 ## Prioritas Berikutnya
 

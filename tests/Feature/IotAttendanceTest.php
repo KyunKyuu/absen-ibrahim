@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attendance;
+use App\Models\IotAttendanceLog;
 use App\Models\IotDevice;
 use App\Models\SchoolSetting;
 use App\Models\StudentProfile;
@@ -45,7 +47,7 @@ class IotAttendanceTest extends TestCase
             'device_identifier' => 'FP-GATE-01',
             'api_token' => 'secret-token',
             'fingerprint_user_id' => 'FP-1001',
-            'scanned_at' => '2026-06-22 06:45:00',
+            'scanned_at' => '2026-06-21T23:45:00Z',
         ]);
 
         $response->assertOk()
@@ -63,5 +65,9 @@ class IotAttendanceTest extends TestCase
             'attendance_points' => 5,
             'general_points' => 5,
         ]);
+
+        $log = IotAttendanceLog::query()->sole();
+        $this->assertArrayNotHasKey('api_token', $log->payload);
+        $this->assertSame('2026-06-22', Attendance::query()->sole()->attendance_date->toDateString());
     }
 }

@@ -3,10 +3,14 @@
 namespace App\Services;
 
 use App\Models\Attendance;
+use App\Models\SchoolClass;
 use App\Models\SchoolSetting;
+use App\Models\Semester;
+use App\Models\StudentClassHistory;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AttendanceService
@@ -16,13 +20,19 @@ class AttendanceService
         private readonly PointCalculationService $points,
     ) {}
 
-    public function checkInFromWeb(User $student, float $latitude, float $longitude): Attendance
+    public function checkInFromWeb(User $student, float $latitude, float $longitude, float $accuracy): Attendance
     {
         $setting = SchoolSetting::active();
 
         if ($setting->latitude === null || $setting->longitude === null) {
             throw ValidationException::withMessages([
                 'latitude' => 'Lokasi sekolah belum diatur admin.',
+            ]);
+        }
+
+        if ($accuracy > $setting->max_location_accuracy_meters) {
+            throw ValidationException::withMessages([
+                'accuracy' => 'Akurasi GPS masih ±'.(int) ceil($accuracy).' meter. Maksimal yang diizinkan ±'.$setting->max_location_accuracy_meters.' meter. Coba di area terbuka.',
             ]);
         }
 
@@ -39,6 +49,7 @@ class AttendanceService
             'latitude' => $latitude,
             'longitude' => $longitude,
             'distance_meters' => $distance,
+            'location_accuracy_meters' => (int) ceil($accuracy),
             'is_within_radius' => true,
         ], $student);
     }
@@ -54,26 +65,65 @@ class AttendanceService
 
     private function createAttendance(User $student, CarbonInterface $time, string $source, array $extra, ?User $actor = null): Attendance
     {
-        $setting = SchoolSetting::active();
-        $isOntime = $time->format('H:i:s') <= $setting->late_after;
-        $status = $isOntime ? 'present' : 'late';
+        return DB::transaction(function () use ($student, $time, $source, $extra, $actor) {
+            $existing = Attendance::query()
+                ->where('student_user_id', $student->id)
+                ->whereDate('attendance_date', $time->toDateString())
+                ->lockForUpdate()
+                ->first();
 
-        $attendance = Attendance::query()->firstOrNew([
-            'student_user_id' => $student->id,
-            'attendance_date' => $time->toDateString(),
-        ]);
-        $isFirstCheckIn = ! $attendance->exists;
+            // Check-in pertama adalah sumber kebenaran. Scan ulang tidak boleh
+            // mengubah jam/status tetapi meninggalkan poin lama yang berbeda.
+            if ($existing) {
+                return $existing;
+            }
 
-        $attendance->fill(array_merge($extra, [
-            'created_by_user_id' => $actor?->id,
-            'checked_in_at' => $time->format('H:i:s'),
-            'status' => $status,
-            'source' => $source,
-            'is_ontime' => $isOntime,
-        ]));
-        $attendance->save();
+            $setting = SchoolSetting::active();
+            $checkInTime = $time->format('H:i:s');
 
-        if ($isFirstCheckIn) {
+            if ($checkInTime < $setting->attendance_open_time || $checkInTime > $setting->attendance_close_time) {
+                throw ValidationException::withMessages([
+                    'attendance' => 'Absensi hanya dibuka pukul '.substr($setting->attendance_open_time, 0, 5).'–'.substr($setting->attendance_close_time, 0, 5).'.',
+                ]);
+            }
+
+            $isOntime = $checkInTime <= $setting->late_after;
+            $status = $isOntime ? 'present' : 'late';
+            $attendanceDate = $time->toDateString();
+            $classHistory = StudentClassHistory::query()
+                ->where('student_user_id', $student->id)
+                ->whereDate('started_on', '<=', $attendanceDate)
+                ->where(fn ($query) => $query->whereNull('ended_on')->orWhereDate('ended_on', '>=', $attendanceDate))
+                ->latest('started_on')
+                ->latest('id')
+                ->first();
+            $schoolClassId = $classHistory?->school_class_id
+                ?? $student->studentProfile()->value('school_class_id');
+            $academicYearId = $classHistory?->academic_year_id
+                ?? ($schoolClassId ? SchoolClass::query()->whereKey($schoolClassId)->value('academic_year_id') : null);
+            $semesterId = Semester::query()
+                ->whereDate('starts_on', '<=', $attendanceDate)
+                ->whereDate('ends_on', '>=', $attendanceDate)
+                ->value('id');
+
+            $attendance = Attendance::query()->createOrFirst([
+                'student_user_id' => $student->id,
+                'attendance_date' => $attendanceDate,
+            ], array_merge($extra, [
+                'school_class_id' => $schoolClassId,
+                'academic_year_id' => $academicYearId,
+                'semester_id' => $semesterId,
+                'created_by_user_id' => $actor?->id,
+                'checked_in_at' => $checkInTime,
+                'status' => $status,
+                'source' => $source,
+                'is_ontime' => $isOntime,
+            ]));
+
+            if (! $attendance->wasRecentlyCreated) {
+                return $attendance;
+            }
+
             $this->points->record(
                 $student,
                 'attendance',
@@ -82,8 +132,8 @@ class AttendanceService
                 $actor,
                 $attendance
             );
-        }
 
-        return $attendance;
+            return $attendance;
+        });
     }
 }

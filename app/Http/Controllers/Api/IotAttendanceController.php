@@ -8,8 +8,10 @@ use App\Models\IotDevice;
 use App\Models\User;
 use App\Services\AttendanceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class IotAttendanceController extends Controller
 {
@@ -33,17 +35,23 @@ class IotAttendanceController extends Controller
 
         $student = User::query()
             ->where('role', 'student')
+            ->where('is_active', true)
             ->whereHas('studentProfile', fn ($query) => $query->where('nis', $data['fingerprint_user_id']))
             ->first();
+
+        $scannedAt = isset($data['scanned_at'])
+            ? Carbon::parse($data['scanned_at'])->setTimezone(config('app.timezone'))
+            : now();
 
         $log = IotAttendanceLog::query()->create([
             'iot_device_id' => $device->id,
             'device_identifier' => $data['device_identifier'],
             'fingerprint_user_id' => $data['fingerprint_user_id'],
             'student_user_id' => $student?->id,
-            'scanned_at' => isset($data['scanned_at']) ? Carbon::parse($data['scanned_at']) : now(),
+            'scanned_at' => $scannedAt,
             'status' => $student ? 'matched' : 'unmatched',
-            'payload' => $request->all(),
+            // Token perangkat tidak boleh masuk ke log/database.
+            'payload' => Arr::except($data, 'api_token'),
             'message' => $student ? 'Absensi diterima.' : 'Fingerprint ID belum terhubung ke NIS siswa.',
         ]);
 
@@ -56,11 +64,20 @@ class IotAttendanceController extends Controller
             ], 422);
         }
 
-        $attendance = $attendanceService->checkInFromDevice(
-            $student,
-            $log->scanned_at,
-            $device->identifier
-        );
+        try {
+            $attendance = $attendanceService->checkInFromDevice(
+                $student,
+                $log->scanned_at,
+                $device->identifier
+            );
+        } catch (ValidationException $exception) {
+            $log->update([
+                'status' => 'rejected',
+                'message' => collect($exception->errors())->flatten()->first() ?? 'Absensi ditolak.',
+            ]);
+
+            throw $exception;
+        }
 
         return response()->json([
             'message' => 'Absensi fingerprint berhasil direkam.',

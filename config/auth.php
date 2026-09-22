@@ -4,6 +4,8 @@ use App\Models\User;
 
 return [
 
+    'import_default_password' => env('IMPORTED_ACCOUNT_DEFAULT_PASSWORD', 'password123'),
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Defaults

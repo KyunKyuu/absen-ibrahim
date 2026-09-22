@@ -12,8 +12,8 @@
                 @csrf
                 <h2>Masuk</h2>
                 @if($errors->any()) <div class="alert errors">{{ $errors->first() }}</div> @endif
-                <label>Email
-                    <input name="email" type="email" value="{{ old('email') }}" required autofocus>
+                <label>Username atau email
+                    <input name="login" value="{{ old('login') }}" required autofocus autocomplete="username">
                 </label>
                 <label>Password
                     <input name="password" type="password" required>

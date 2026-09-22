@@ -16,4 +16,9 @@ class AcademicYear extends Model
             'is_active' => 'boolean',
         ];
     }
+
+    public function semesters()
+    {
+        return $this->hasMany(Semester::class);
+    }
 }
