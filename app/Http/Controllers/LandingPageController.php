@@ -17,14 +17,16 @@ class LandingPageController extends Controller
             ->orderByDesc('published_at')
             ->get()
             ->groupBy('kind');
+        $page = LandingPage::current();
 
         return view('landing', [
-            'page' => LandingPage::current(),
+            'page' => $page,
             'school' => SchoolSetting::active(),
             'programs' => $items->get('program', collect()),
             'activities' => $items->get('activity', collect()),
             'testimonials' => $items->get('testimonial', collect()),
             'statistics' => $items->get('statistic', collect()),
+            'champions' => $items->get('champion', collect()),
             'tuitionPackages' => LandingTuitionPackage::query()
                 ->where('is_active', true)
                 ->orderBy('sort_order')

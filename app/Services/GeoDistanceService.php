@@ -12,6 +12,7 @@ class GeoDistanceService
 
         $a = sin($latDelta / 2) ** 2
             + cos(deg2rad($fromLatitude)) * cos(deg2rad($toLatitude)) * sin($lonDelta / 2) ** 2;
+        $a = max(0.0, min(1.0, $a));
 
         return (int) round($earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a)));
     }

@@ -7,6 +7,8 @@ use App\Models\SchoolClass;
 use App\Models\SchoolFeeType;
 use App\Models\StudentBill;
 use App\Models\StudentClassHistory;
+use App\Models\PointTransaction;
+use App\Models\StudentPointSummary;
 use App\Models\StudentPayment;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -253,6 +255,16 @@ class FinanceService
             }
 
             $profile->update(['school_class_id' => $newClass->id]);
+            PointTransaction::query()->create([
+                'student_user_id' => $student->id,
+                'type' => 'reset',
+                'points' => 0,
+                'description' => 'Reset poin saat naik ke '.$newClass->name,
+            ]);
+            StudentPointSummary::query()->updateOrCreate(
+                ['student_user_id' => $student->id],
+                ['general_points' => 0, 'attitude_points' => 0, 'attendance_points' => 0, 'achievement_points' => 0, 'label' => 'Perlu Dipantau']
+            );
             StudentClassHistory::query()->create([
                 'student_user_id' => $student->id,
                 'school_class_id' => $newClass->id,

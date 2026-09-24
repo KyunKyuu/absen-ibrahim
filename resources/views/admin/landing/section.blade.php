@@ -1,7 +1,7 @@
 @php
     $meta = [
         'hero' => ['Hero & tombol', 'Atur kesan pertama pengunjung: pesan utama, gambar sampul, dan tombol navigasi.'],
-        'profile' => ['Profil sekolah', 'Ceritakan identitas dan pendekatan pendidikan sekolah secara ringkas.'],
+        'profile' => ['Profil sekolah', 'Atur profil, video besar setelah hero, serta visi dan misi sekolah.'],
         'admission' => ['Admisi & kontak', 'Kelola ajakan pendaftaran dan kanal yang dapat dihubungi calon orang tua.'],
     ][$section];
 @endphp
@@ -26,6 +26,14 @@
                 @elseif($section === 'profile')
                     <label>Judul bagian tentang<input name="about_title" value="{{ old('about_title', $page->about_title) }}" maxlength="160" required></label>
                     <label>Narasi sekolah<textarea name="about_body" maxlength="1500" style="min-height:190px" required>{{ old('about_body', $page->about_body) }}</textarea><span class="field-help">Fokus pada nilai, cara belajar, dan hal konkret yang membedakan sekolah.</span></label>
+                    <hr style="border:0;border-top:1px solid var(--line);width:100%">
+                    <h3>Video sekolah</h3>
+                    <label>Judul video<input name="video_title" value="{{ old('video_title', $page->video_title) }}" maxlength="160" placeholder="Mengenal Sekolah Ibrahim"></label>
+                    <label>URL video<input name="video_url" type="url" value="{{ old('video_url', $page->video_url) }}" placeholder="https://www.youtube.com/watch?v=..."><span class="field-help">Masukkan tautan YouTube, Vimeo, atau tautan video langsung. Bagian ini tampil tepat setelah hero.</span></label>
+                    <hr style="border:0;border-top:1px solid var(--line);width:100%">
+                    <h3>Visi dan misi</h3>
+                    <label>Visi sekolah<textarea name="vision" maxlength="1500">{{ old('vision', $page->vision) }}</textarea></label>
+                    <label>Misi sekolah<textarea name="mission" maxlength="3000" style="min-height:150px">{{ old('mission', $page->mission) }}</textarea><span class="field-help">Tulis satu misi per baris.</span></label>
                 @else
                     <label>Judul ajakan pendaftaran<input name="admission_title" value="{{ old('admission_title', $page->admission_title) }}" maxlength="160" required></label>
                     <label>Keterangan pendaftaran<textarea name="admission_body" maxlength="1000" required>{{ old('admission_body', $page->admission_body) }}</textarea></label>

@@ -10,8 +10,8 @@ use App\Models\StudentPayment;
 use App\Models\User;
 use App\Services\FinanceService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class FinanceController extends Controller
@@ -24,7 +24,7 @@ class FinanceController extends Controller
         $isPayer = $user->hasAnyRole(['student', 'parent']);
         abort_unless($canManage || $isHomeroomTeacher || $isPayer, 403);
         $allowedSections = $canManage
-            ? ['bills', 'issue', 'fee-types', 'proposals', 'promotions', 'record-payment', 'confirmations', 'payments']
+            ? ['bills', 'issue', 'fee-types', 'proposals', 'record-payment', 'confirmations', 'payments']
             : ($isPayer ? ['bills', 'payments'] : ['bills', 'proposals']);
         abort_unless(in_array($section, $allowedSections, true), 403);
 

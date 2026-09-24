@@ -73,6 +73,10 @@ class LandingContentController extends Controller
             'profile' => [
                 'about_title' => ['required', 'string', 'max:160'],
                 'about_body' => ['required', 'string', 'max:1500'],
+                'video_title' => ['nullable', 'string', 'max:160'],
+                'video_url' => ['nullable', 'url:http,https', 'max:2048'],
+                'vision' => ['nullable', 'string', 'max:1500'],
+                'mission' => ['nullable', 'string', 'max:3000'],
             ],
             'admission' => [
                 'admission_title' => ['required', 'string', 'max:160'],
@@ -85,7 +89,8 @@ class LandingContentController extends Controller
             default => abort(404),
         };
 
-        $this->page()->update($request->validate($rules));
+        $data = $request->validate($rules);
+        $this->page()->update($data);
 
         return back()->with('status', 'Perubahan berhasil disimpan.');
     }
@@ -103,6 +108,10 @@ class LandingContentController extends Controller
             'secondary_cta_url' => ['required', 'string', 'max:2048', 'regex:/^(#|\/|https?:\/\/)/i'],
             'about_title' => ['required', 'string', 'max:160'],
             'about_body' => ['required', 'string', 'max:1500'],
+            'video_title' => ['nullable', 'string', 'max:160'],
+            'video_url' => ['nullable', 'url:http,https', 'max:2048'],
+            'vision' => ['nullable', 'string', 'max:1500'],
+            'mission' => ['nullable', 'string', 'max:3000'],
             'admission_title' => ['required', 'string', 'max:160'],
             'admission_body' => ['required', 'string', 'max:1000'],
             'whatsapp' => ['nullable', 'string', 'max:30'],
@@ -208,6 +217,7 @@ class LandingContentController extends Controller
             'activity' => 'Kabar & kegiatan',
             'testimonial' => 'Testimoni',
             'statistic' => 'Statistik',
+            'champion' => 'Juara & prestasi',
         ];
     }
 

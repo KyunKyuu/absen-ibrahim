@@ -22,4 +22,9 @@ class AchievementAssessment extends Model
     {
         return ['awarded_on' => 'date'];
     }
+
+    public function subject()
+    {
+        return $this->belongsTo(Subject::class);
+    }
 }

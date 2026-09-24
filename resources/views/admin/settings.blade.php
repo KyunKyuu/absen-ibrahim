@@ -23,11 +23,14 @@
             <form class="stack" method="post" action="{{ route('admin.settings.update') }}">@csrf
                 <label>Nama sekolah<input name="school_name" value="{{ old('school_name', $setting->school_name) }}" required></label>
                 <div class="form-grid">
-                    <label>Latitude sekolah<input name="latitude" value="{{ old('latitude', $setting->latitude) }}"></label>
-                    <label>Longitude sekolah<input name="longitude" value="{{ old('longitude', $setting->longitude) }}"></label>
+                    <label>Latitude sekolah<input id="school-latitude" name="latitude" value="{{ old('latitude', $setting->latitude) }}"></label>
+                    <label>Longitude sekolah<input id="school-longitude" name="longitude" value="{{ old('longitude', $setting->longitude) }}"></label>
                     <label>Maks. radius absensi (meter)<input name="attendance_radius_meters" type="number" min="10" max="5000" value="{{ old('attendance_radius_meters', $setting->attendance_radius_meters) }}" required></label>
-                    <label>Maks. galat GPS (meter)<input name="max_location_accuracy_meters" type="number" min="5" max="1000" value="{{ old('max_location_accuracy_meters', $setting->max_location_accuracy_meters) }}" required></label>
+                    <label>Maks. galat GPS (meter)<input id="school-gps-accuracy" name="max_location_accuracy_meters" type="number" min="5" max="1000" value="{{ old('max_location_accuracy_meters', $setting->max_location_accuracy_meters) }}" required></label>
                 </div>
+                <p class="field-help">Gunakan titik sekolah yang sebenarnya. Absensi diterima jika jarak siswa ditambah galat GPS berada di dalam radius. Akses dari HP memerlukan HTTPS dan izin lokasi presisi.</p>
+                <button class="btn" type="button" id="school-location-button">Ambil koordinat dari lokasi saya</button>
+                <p class="field-help" id="school-location-status" role="status" aria-live="polite">Gunakan tombol ini hanya saat berada di titik absensi sekolah. Periksa hasilnya lalu tekan Simpan pengaturan.</p>
                 <h2 style="margin:8px 0 0">Jadwal absensi</h2>
                 <div class="form-grid">
                     <label>Absensi dibuka<input name="attendance_open_time" type="time" value="{{ old('attendance_open_time', substr($setting->attendance_open_time, 0, 5)) }}" required></label>
@@ -38,6 +41,7 @@
                 <button class="btn primary" type="submit">Simpan pengaturan</button>
             </form>
         </section>
+        <script src="{{ asset('js/school-location.js') }}" defer></script>
     @elseif($section === 'classes')
         <div class="grid two">
             <section class="panel">

@@ -35,12 +35,13 @@ class RbacAccountManagementTest extends TestCase
             [route('finance.issue'), 'Terbitkan tagihan'],
             [route('finance.fee-types'), 'Jenis tagihan'],
             [route('finance.proposals'), 'Usulan biaya'],
-            [route('finance.promotions'), 'Kenaikan kelas'],
+            [route('classes.promotions'), 'Kenaikan kelas'],
         ];
 
         foreach ($pages as [$url, $heading]) {
             $this->get($url)->assertOk()->assertSee($heading, false);
         }
+        $this->get(route('finance.promotions'))->assertRedirect(route('classes.promotions'));
     }
 
     public function test_account_list_supports_search_role_filter_and_pagination(): void
@@ -162,7 +163,7 @@ class RbacAccountManagementTest extends TestCase
         $class = SchoolClass::query()->create(['name' => '10A', 'academic_year_id' => $year->id]);
         $studentRole = Role::query()->where('name', 'student')->firstOrFail();
         $path = tempnam(sys_get_temp_dir(), 'students-xlsx-');
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $zip->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
         $zip->addFromString('xl/worksheets/sheet1.xml', '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>nama</t></is></c><c r="B1" t="inlineStr"><is><t>nis</t></is></c><c r="C1" t="inlineStr"><is><t>kelas</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Siswa Excel</t></is></c><c r="B2" t="inlineStr"><is><t>EX-001</t></is></c><c r="C2" t="inlineStr"><is><t>10A</t></is></c></row></sheetData></worksheet>');
         $zip->close();

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class LandingItem extends Model
 {
-    public const KINDS = ['program', 'activity', 'testimonial', 'statistic'];
+    public const KINDS = ['program', 'activity', 'testimonial', 'statistic', 'champion'];
 
     protected $guarded = [];
 

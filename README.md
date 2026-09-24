@@ -30,6 +30,8 @@ Dokumentasi project ada di folder `docs`:
 - `docs/iot-fingerprint-integration.md`
 - `docs/finance.md`
 - `docs/account-rbac.md`
+- `docs/subject-grades.md` — input nilai mapel sesuai penugasan guru, semester, dan kelas.
+- `docs/attendance-web.md` — persiapan absensi GPS, validasi, batas anti-spoofing, dan uji lapangan.
 
 ## Setup Development
 

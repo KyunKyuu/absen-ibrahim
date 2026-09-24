@@ -64,6 +64,11 @@ class User extends Authenticatable
         return $this->hasOne(StudentPointSummary::class, 'student_user_id');
     }
 
+    public function pointTransactions()
+    {
+        return $this->hasMany(PointTransaction::class, 'student_user_id');
+    }
+
     public function roles()
     {
         return $this->belongsToMany(Role::class);

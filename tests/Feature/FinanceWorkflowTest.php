@@ -7,8 +7,10 @@ use App\Models\FinanceProposal;
 use App\Models\SchoolClass;
 use App\Models\SchoolFeeType;
 use App\Models\StudentBill;
-use App\Models\StudentPayment;
 use App\Models\StudentClassHistory;
+use App\Models\PointTransaction;
+use App\Models\StudentPointSummary;
+use App\Models\StudentPayment;
 use App\Models\StudentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -143,7 +145,7 @@ class FinanceWorkflowTest extends TestCase
             'status' => 'partial',
         ]);
 
-        $this->actingAs($admin)->post(route('finance.students.promote', $student), [
+        $this->actingAs($admin)->post(route('classes.students.promote', $student), [
             'school_class_id' => $newClass->id,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -201,6 +203,40 @@ class FinanceWorkflowTest extends TestCase
         $this->actingAs($teacher)->get(route('finance.index'))->assertOk()->assertSee('Ajukan biaya kelas')->assertDontSee('Daftar tagihan');
         $this->actingAs($students->first())->get(route('finance.index'))->assertOk()->assertSee('Tagihan saya');
         $this->actingAs($parent)->get(route('finance.index'))->assertOk()->assertSee('Tagihan anak');
+    }
+
+    public function test_promoting_student_resets_current_points_and_starts_new_class_point_period(): void
+    {
+        [$teacher, , $oldClass, $students, $year] = $this->financeFixture();
+        $student = $students->first();
+        $newClass = SchoolClass::query()->create(['name' => 'XI A', 'grade_level' => 11, 'academic_year_id' => $year->id]);
+        PointTransaction::query()->create([
+            'student_user_id' => $student->id, 'type' => 'achievement', 'points' => 45, 'description' => 'Poin lama',
+        ]);
+        StudentPointSummary::query()->create([
+            'student_user_id' => $student->id, 'general_points' => 45, 'achievement_points' => 45, 'label' => 'Perlu Dipantau',
+        ]);
+        StudentClassHistory::query()->create([
+            'student_user_id' => $student->id, 'school_class_id' => $oldClass->id,
+            'academic_year_id' => $year->id, 'started_on' => '2026-07-01',
+        ]);
+
+        app(\App\Services\FinanceService::class)->promoteStudent($student, $newClass);
+
+        $this->assertDatabaseHas('student_point_summaries', [
+            'student_user_id' => $student->id, 'general_points' => 0, 'achievement_points' => 0,
+        ]);
+        $this->assertDatabaseHas('point_transactions', [
+            'student_user_id' => $student->id, 'type' => 'reset', 'points' => 0,
+        ]);
+        $this->assertDatabaseHas('student_class_histories', [
+            'student_user_id' => $student->id, 'school_class_id' => $newClass->id,
+        ]);
+
+        app(\App\Services\PointCalculationService::class)->record($student, 'achievement', 10, 'Poin baru', $teacher);
+        $this->assertDatabaseHas('student_point_summaries', [
+            'student_user_id' => $student->id, 'general_points' => 10, 'achievement_points' => 10,
+        ]);
     }
 
     private function financeFixture(int $studentCount = 1): array

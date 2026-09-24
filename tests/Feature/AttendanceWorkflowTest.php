@@ -54,11 +54,13 @@ class AttendanceWorkflowTest extends TestCase
 
         Carbon::setTestNow('2026-09-21 06:30:00');
         $this->actingAs($student)->post(route('attendance.check-in'), [
+            'location_timestamp' => now()->getTimestampMs(),
             'latitude' => -6.2, 'longitude' => 106.8, 'accuracy' => 10,
         ])->assertSessionHasNoErrors();
 
         Carbon::setTestNow('2026-09-21 08:00:00');
         $this->actingAs($student)->post(route('attendance.check-in'), [
+            'location_timestamp' => now()->getTimestampMs(),
             'latitude' => -6.2, 'longitude' => 106.8, 'accuracy' => 10,
         ])->assertSessionHas('status', 'Absensi hari ini sudah tercatat sebelumnya.');
 
@@ -84,6 +86,7 @@ class AttendanceWorkflowTest extends TestCase
 
         $this->actingAs($student)->post(route('attendance.check-in'), [
             'latitude' => -6.3, 'longitude' => 106.9, 'accuracy' => 10,
+            'location_timestamp' => now()->getTimestampMs(),
         ])->assertSessionHasErrors('latitude');
 
         $this->assertDatabaseCount('attendances', 0);
@@ -105,6 +108,7 @@ class AttendanceWorkflowTest extends TestCase
 
         $this->actingAs($student)->post(route('attendance.check-in'), [
             'latitude' => -6.1997, 'longitude' => 106.8, 'accuracy' => 12,
+            'location_timestamp' => now()->getTimestampMs(),
         ])->assertSessionHasNoErrors();
 
         $attendance = Attendance::query()->sole();
@@ -127,6 +131,7 @@ class AttendanceWorkflowTest extends TestCase
 
         $this->actingAs($student)->post(route('attendance.check-in'), [
             'latitude' => -6.2, 'longitude' => 106.8, 'accuracy' => 80,
+            'location_timestamp' => now()->getTimestampMs(),
         ])->assertSessionHasErrors('accuracy');
 
         $this->assertDatabaseCount('attendances', 0);
@@ -150,6 +155,7 @@ class AttendanceWorkflowTest extends TestCase
         Carbon::setTestNow('2026-09-21 23:00:00');
 
         $this->actingAs($student)->post(route('attendance.check-in'), [
+            'location_timestamp' => now()->getTimestampMs(),
             'latitude' => -6.2, 'longitude' => 106.8, 'accuracy' => 10,
         ])->assertSessionHasErrors('attendance');
 
@@ -179,6 +185,7 @@ class AttendanceWorkflowTest extends TestCase
         Carbon::setTestNow('2026-09-21 06:30:00');
 
         $this->actingAs($student)->post(route('attendance.check-in'), [
+            'location_timestamp' => now()->getTimestampMs(),
             'latitude' => -6.2, 'longitude' => 106.8, 'accuracy' => 10,
         ])->assertSessionHasNoErrors();
 

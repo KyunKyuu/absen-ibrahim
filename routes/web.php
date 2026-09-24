@@ -6,6 +6,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\GradeController;
 use App\Http\Controllers\LandingContentController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\ReportController;
@@ -28,6 +29,22 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
     Route::get('/classes', [AdminController::class, 'classDirectory'])
         ->middleware('permission:school.manage,assessments.manage')
         ->name('classes.index');
+    Route::get('/classes/subjects', [AdminController::class, 'classDirectory'])->defaults('section', 'subjects')
+        ->middleware('permission:school.manage')->name('classes.subjects');
+    Route::get('/classes/teaching', [AdminController::class, 'classDirectory'])->defaults('section', 'teaching')
+        ->middleware('permission:school.manage')->name('classes.teaching');
+    Route::get('/classes/promotions', [AdminController::class, 'classDirectory'])->defaults('section', 'promotions')
+        ->middleware('permission:school.manage')->name('classes.promotions');
+    Route::get('/classes/{schoolClass}', [AdminController::class, 'showClass'])
+        ->middleware('permission:school.manage,assessments.manage')->name('classes.show');
+    Route::post('/classes/{schoolClass}/attendance', [AdminController::class, 'recordClassAttendance'])
+        ->middleware('permission:school.manage,assessments.manage')->name('classes.attendance.store');
+    Route::get('/students', [AdminController::class, 'students'])
+        ->middleware('permission:school.manage,assessments.manage')->name('students.index');
+    Route::get('/students/{student}', [AdminController::class, 'showStudent'])
+        ->middleware('permission:school.manage,assessments.manage')->name('students.show');
+    Route::post('/classes/{schoolClass}/promote', [AdminController::class, 'promoteStudents'])
+        ->middleware('permission:school.manage')->name('classes.promote');
 
     Route::middleware('role:superadmin')->group(function () {
         Route::get('/admin/landing', [LandingContentController::class, 'index'])->name('admin.landing.index');
@@ -75,11 +92,11 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
         Route::post('/admin/subjects', [AdminController::class, 'storeSubject'])->name('admin.subjects.store');
         Route::post('/admin/teaching-assignments', [AdminController::class, 'storeTeachingAssignment'])->name('admin.teaching-assignments.store');
         Route::delete('/admin/teaching-assignments/{teachingAssignment}', [AdminController::class, 'destroyTeachingAssignment'])->name('admin.teaching-assignments.destroy');
-        Route::post('/finance/students/{student}/promote', [FinanceController::class, 'promoteStudent'])->name('finance.students.promote');
+        Route::post('/classes/students/{student}/promote', [FinanceController::class, 'promoteStudent'])->name('classes.students.promote');
     });
 
     Route::middleware('permission:attendance.checkin')->group(function () {
-        Route::post('/attendance/check-in', [AttendanceController::class, 'store'])->name('attendance.check-in');
+        Route::post('/attendance/check-in', [AttendanceController::class, 'store'])->middleware('throttle:10,1')->name('attendance.check-in');
     });
 
     Route::middleware('permission:attendance.manage')->group(function () {
@@ -88,6 +105,11 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
     });
 
     Route::middleware('permission:assessments.manage')->group(function () {
+        Route::get('/teacher/grades', [GradeController::class, 'index'])->name('teacher.grades.index');
+        Route::get('/teacher/grades/create', [GradeController::class, 'index'])->defaults('section', 'create')->name('teacher.grades.create');
+        Route::post('/teacher/grades', [GradeController::class, 'store'])->name('teacher.grades.store');
+        Route::get('/teacher/grades/{assessment}', [GradeController::class, 'show'])->name('teacher.grades.show');
+        Route::post('/teacher/grades/{assessment}', [GradeController::class, 'save'])->name('teacher.grades.save');
         Route::get('/teacher/assessments', [AssessmentController::class, 'create'])->name('teacher.assessments');
         Route::get('/teacher/assessments/achievements', [AssessmentController::class, 'create'])->defaults('section', 'achievement')->name('teacher.assessments.achievements');
         Route::post('/teacher/assessments/attitude', [AssessmentController::class, 'storeAttitude'])->name('teacher.assessments.attitude');
@@ -106,7 +128,7 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
     Route::get('/finance/issue', [FinanceController::class, 'index'])->defaults('section', 'issue')->middleware('permission:finance.manage')->name('finance.issue');
     Route::get('/finance/fee-types', [FinanceController::class, 'index'])->defaults('section', 'fee-types')->middleware('permission:finance.manage')->name('finance.fee-types');
     Route::get('/finance/proposals', [FinanceController::class, 'index'])->defaults('section', 'proposals')->middleware('permission:finance.manage,finance.propose')->name('finance.proposals');
-    Route::get('/finance/promotions', [FinanceController::class, 'index'])->defaults('section', 'promotions')->middleware('permission:school.manage')->name('finance.promotions');
+    Route::get('/finance/promotions', fn () => redirect()->route('classes.promotions'))->middleware('permission:school.manage')->name('finance.promotions');
     Route::get('/finance/record-payment', [FinanceController::class, 'index'])->defaults('section', 'record-payment')->middleware('permission:finance.manage')->name('finance.record-payment');
     Route::get('/finance/payment-confirmations', [FinanceController::class, 'index'])->defaults('section', 'confirmations')->middleware('permission:finance.manage')->name('finance.confirmations');
 

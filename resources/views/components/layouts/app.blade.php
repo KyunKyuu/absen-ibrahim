@@ -127,7 +127,7 @@
                     <div class="subnav">
                         <a class="{{ request()->routeIs('admin.landing.index') ? 'active' : '' }}" href="{{ route('admin.landing.index') }}">Ringkasan</a>
                         <a class="{{ request()->routeIs('admin.landing.hero') ? 'active' : '' }}" href="{{ route('admin.landing.hero') }}">Hero & tombol</a>
-                        <a class="{{ request()->routeIs('admin.landing.profile') ? 'active' : '' }}" href="{{ route('admin.landing.profile') }}">Profil sekolah</a>
+                        <a class="{{ request()->routeIs('admin.landing.profile') ? 'active' : '' }}" href="{{ route('admin.landing.profile') }}">Profil & visi-misi</a>
                         <a class="{{ request()->routeIs('admin.landing.admission') ? 'active' : '' }}" href="{{ route('admin.landing.admission') }}">Admisi & kontak</a>
                         <a class="{{ request()->routeIs('admin.landing.content') ? 'active' : '' }}" href="{{ route('admin.landing.content', 'program') }}">Konten</a>
                         <a class="{{ request()->routeIs('admin.landing.tuition') ? 'active' : '' }}" href="{{ route('admin.landing.tuition') }}">Biaya pendidikan</a>
@@ -154,11 +154,20 @@
                     </div>
                 @endif
                 @if(auth()->user()->canDo('school.manage') || auth()->user()->canDo('assessments.manage'))
-                    <a class="{{ request()->routeIs('classes.index') ? 'active' : '' }}" href="{{ route('classes.index') }}"><span class="nav-icon">▦</span>Kelas & pengajaran</a>
+                    <a class="nav-parent {{ request()->routeIs('classes.*') ? 'active' : '' }}" href="{{ route('classes.index') }}"><span class="nav-icon">▦</span>Kelas & pengajaran</a>
+                    <div class="subnav">
+                        <a class="{{ request()->routeIs('classes.index') ? 'active' : '' }}" href="{{ route('classes.index') }}">Daftar kelas</a>
+                        <a class="{{ request()->routeIs('students.*') ? 'active' : '' }}" href="{{ route('students.index') }}">Daftar siswa</a>
+                        @if(auth()->user()->canDo('school.manage'))
+                            <a class="{{ request()->routeIs('classes.subjects') ? 'active' : '' }}" href="{{ route('classes.subjects') }}">Mata pelajaran</a>
+                        <a class="{{ request()->routeIs('classes.teaching') ? 'active' : '' }}" href="{{ route('classes.teaching') }}">Penugasan guru</a>
+                        <a class="{{ request()->routeIs('classes.promotions') ? 'active' : '' }}" href="{{ route('classes.promotions') }}">Kenaikan kelas</a>
+                        @endif
+                    </div>
                 @endif
                 @if(auth()->user()->canDo('assessments.manage'))
-                    <a class="nav-parent {{ request()->routeIs('teacher.assessments', 'teacher.assessments.*') ? 'active' : '' }}" href="{{ route('teacher.assessments') }}"><span class="nav-icon">✓</span>Penilaian</a>
-                    <div class="subnav"><a class="{{ request()->routeIs('teacher.assessments') ? 'active' : '' }}" href="{{ route('teacher.assessments') }}">Penilaian sikap</a><a class="{{ request()->routeIs('teacher.assessments.achievements') ? 'active' : '' }}" href="{{ route('teacher.assessments.achievements') }}">Prestasi & pelanggaran</a></div>
+                    <a class="nav-parent {{ request()->routeIs('teacher.assessments', 'teacher.assessments.*', 'teacher.grades.*') ? 'active' : '' }}" href="{{ route('teacher.assessments') }}"><span class="nav-icon">✓</span>Penilaian</a>
+                    <div class="subnav"><a class="{{ request()->routeIs('teacher.grades.*') ? 'active' : '' }}" href="{{ route('teacher.grades.index') }}">Nilai mata pelajaran</a><a class="{{ request()->routeIs('teacher.assessments') ? 'active' : '' }}" href="{{ route('teacher.assessments') }}">Penilaian sikap</a><a class="{{ request()->routeIs('teacher.assessments.achievements') ? 'active' : '' }}" href="{{ route('teacher.assessments.achievements') }}">Prestasi & pelanggaran</a></div>
                 @endif
                 @if(auth()->user()->canDo('attendance.manage'))
                     <a class="nav-parent {{ request()->routeIs('attendance.*') ? 'active' : '' }}" href="{{ route('attendance.index') }}"><span class="nav-icon">◷</span>Absensi</a>
@@ -175,7 +184,6 @@
                             <a class="{{ request()->routeIs('finance.fee-types') ? 'active' : '' }}" href="{{ route('finance.fee-types') }}">Jenis tagihan</a>
                             <a class="{{ request()->routeIs('finance.proposals') ? 'active' : '' }}" href="{{ route('finance.proposals') }}">Usulan biaya</a>
                             <a class="{{ request()->routeIs('finance.payment-history') ? 'active' : '' }}" href="{{ route('finance.payment-history') }}">Riwayat pembayaran</a>
-                            @if(auth()->user()->canDo('school.manage'))<a class="{{ request()->routeIs('finance.promotions') ? 'active' : '' }}" href="{{ route('finance.promotions') }}">Kenaikan kelas</a>@endif
                         @elseif(auth()->user()->hasAnyRole(['student', 'parent']))
                             <a class="{{ request()->routeIs('finance.index') ? 'active' : '' }}" href="{{ route('finance.index') }}">{{ auth()->user()->hasRole('parent') ? 'Tagihan anak' : 'Tagihan saya' }}</a>
                             <a class="{{ request()->routeIs('finance.payment-history') ? 'active' : '' }}" href="{{ route('finance.payment-history') }}">Riwayat pembayaran</a>
@@ -197,8 +205,8 @@
             </div>
         </aside>
         <main class="main">
-            @if(session('status'))<div class="alert" role="status">{{ session('status') }}</div>@endif
-            @if($errors->any())<div class="alert errors" role="alert">{{ $errors->first() }}</div>@endif
+            @if(session('status'))<div class="alert flash-inline" role="status">{{ session('status') }}</div>@endif
+            @if($errors->any())<div class="alert errors flash-inline" role="alert">{{ $errors->first() }}</div>@endif
             {{ $slot }}
         </main>
     </div>
@@ -235,5 +243,37 @@
     })();
 </script>
 @endauth
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    (() => {
+        const success = @json(session('status'));
+        const error = @json($errors->any() ? $errors->first() : null);
+        if (typeof Swal === 'undefined') return;
+        document.querySelectorAll('.flash-inline').forEach((element) => { element.hidden = true; });
+        if (success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                text: success,
+                toast: true,
+                position: 'top-end',
+                timer: 3200,
+                timerProgressBar: true,
+                showConfirmButton: false,
+            });
+        } else if (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Belum tersimpan',
+                text: error,
+                toast: true,
+                position: 'top-end',
+                timer: 5000,
+                timerProgressBar: true,
+                showConfirmButton: false,
+            });
+        }
+    })();
+</script>
 </body>
 </html>

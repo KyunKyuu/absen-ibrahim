@@ -24,6 +24,11 @@ class AttendanceService
     {
         $setting = SchoolSetting::active();
 
+        if (! is_finite($latitude) || ! is_finite($longitude) || ! is_finite($accuracy)
+            || abs($latitude) > 90 || abs($longitude) > 180 || $accuracy <= 0) {
+            throw ValidationException::withMessages(['latitude' => 'Pembacaan GPS tidak valid. Ambil lokasi kembali.']);
+        }
+
         if ($setting->latitude === null || $setting->longitude === null) {
             throw ValidationException::withMessages([
                 'latitude' => 'Lokasi sekolah belum diatur admin.',
@@ -42,6 +47,12 @@ class AttendanceService
         if (! $withinRadius) {
             throw ValidationException::withMessages([
                 'latitude' => "Lokasi Anda berjarak {$distance} meter dari sekolah.",
+            ]);
+        }
+
+        if ($distance + $accuracy > $setting->attendance_radius_meters) {
+            throw ValidationException::withMessages([
+                'accuracy' => 'Lokasi masih terlalu dekat batas area dengan galat GPS saat ini. Dekati titik absensi sekolah dan tunggu GPS lebih akurat.',
             ]);
         }
 
@@ -80,14 +91,17 @@ class AttendanceService
 
             $setting = SchoolSetting::active();
             $checkInTime = $time->format('H:i:s');
+            $openTime = Carbon::parse($setting->attendance_open_time)->format('H:i:s');
+            $closeTime = Carbon::parse($setting->attendance_close_time)->format('H:i:s');
+            $lateAfter = Carbon::parse($setting->late_after)->format('H:i:s');
 
-            if ($checkInTime < $setting->attendance_open_time || $checkInTime > $setting->attendance_close_time) {
+            if ($checkInTime < $openTime || $checkInTime > $closeTime) {
                 throw ValidationException::withMessages([
                     'attendance' => 'Absensi hanya dibuka pukul '.substr($setting->attendance_open_time, 0, 5).'–'.substr($setting->attendance_close_time, 0, 5).'.',
                 ]);
             }
 
-            $isOntime = $checkInTime <= $setting->late_after;
+            $isOntime = $checkInTime <= $lateAfter;
             $status = $isOntime ? 'present' : 'late';
             $attendanceDate = $time->toDateString();
             $classHistory = StudentClassHistory::query()

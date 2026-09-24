@@ -13,19 +13,20 @@ class ReportController extends Controller
         return response()->streamDownload(function () {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, ['Tanggal', 'Nama', 'Kelas', 'Status', 'Jam', 'Sumber', 'Jarak Meter', 'Tepat Waktu']);
+            fputcsv($handle, ['Tanggal', 'Nama', 'Kelas Saat Absen', 'Status', 'Jam', 'Sumber', 'Jarak Meter', 'Tepat Waktu', 'Galat GPS Meter']);
 
-            Attendance::query()->with('student.studentProfile.schoolClass')->orderByDesc('attendance_date')->chunk(200, function ($rows) use ($handle) {
+            Attendance::query()->with(['student', 'schoolClass'])->orderByDesc('attendance_date')->orderByDesc('id')->chunk(200, function ($rows) use ($handle) {
                 foreach ($rows as $attendance) {
                     fputcsv($handle, [
                         $attendance->attendance_date?->format('Y-m-d'),
                         $this->csvSafe($attendance->student?->name),
-                        $this->csvSafe($attendance->student?->studentProfile?->schoolClass?->name),
+                        $this->csvSafe($attendance->schoolClass?->name),
                         $this->csvSafe($attendance->status),
                         $attendance->checked_in_at,
                         $this->csvSafe($attendance->source),
                         $attendance->distance_meters,
                         $attendance->is_ontime ? 'Ya' : 'Tidak',
+                        $attendance->location_accuracy_meters,
                     ]);
                 }
             });

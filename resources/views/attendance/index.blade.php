@@ -23,12 +23,12 @@
         </form>
 
         <div class="table-scroll" style="margin-top:18px"><table>
-            <thead><tr><th>Tanggal</th><th>Siswa</th><th>Kelas</th><th>Status</th><th>Jam</th><th>Sumber</th><th>Jarak</th></tr></thead>
+            <thead><tr><th>Tanggal</th><th>Siswa</th><th>Kelas saat absen</th><th>Status</th><th>Jam</th><th>Sumber</th><th>Jarak</th><th>Galat GPS</th></tr></thead>
             <tbody>@forelse($attendances as $attendance)<tr>
-                <td>{{ $attendance->attendance_date?->format('d M Y') }}</td><td><strong>{{ $attendance->student?->name }}</strong></td><td>{{ $attendance->student?->studentProfile?->schoolClass?->name ?? '-' }}</td>
-                @php($displayStatus = $attendance->status === 'present' && ! $attendance->is_ontime ? 'Terlambat' : ucfirst($attendance->status))
-                <td><span class="badge {{ $displayStatus === 'Terlambat' ? 'priority' : '' }}">{{ $displayStatus }}</span></td><td>{{ $attendance->checked_in_at }}</td><td>{{ $attendance->source === 'iot' ? 'IoT' : 'Web' }}</td><td>{{ $attendance->distance_meters !== null ? $attendance->distance_meters.' m' : '-' }}</td>
-            </tr>@empty<tr><td colspan="7"><div class="empty-state">Tidak ada absensi yang cocok dengan filter.</div></td></tr>@endforelse</tbody>
+                <td>{{ $attendance->attendance_date?->format('d M Y') }}</td><td><strong>{{ $attendance->student?->name }}</strong></td><td>{{ $attendance->schoolClass?->name ?? '-' }}</td>
+                @php($displayStatus = $attendance->status === 'late' || ($attendance->status === 'present' && ! $attendance->is_ontime) ? 'Terlambat' : ['present' => 'Hadir', 'excused' => 'Izin', 'absent' => 'Tidak hadir'][$attendance->status] ?? ucfirst($attendance->status))
+                <td><span class="badge {{ $displayStatus === 'Terlambat' ? 'priority' : '' }}">{{ $displayStatus }}</span></td><td>{{ $attendance->checked_in_at }}</td><td>{{ in_array($attendance->source, ['iot', 'fingerprint']) ? 'IoT' : 'Web' }}</td><td>{{ $attendance->distance_meters !== null ? $attendance->distance_meters.' m' : '-' }}</td><td>{{ $attendance->location_accuracy_meters !== null ? '±'.$attendance->location_accuracy_meters.' m' : '-' }}</td>
+            </tr>@empty<tr><td colspan="8"><div class="empty-state">Tidak ada absensi yang cocok dengan filter.</div></td></tr>@endforelse</tbody>
         </table></div>
         <div style="margin-top:14px">{{ $attendances->links() }}</div>
     </section>

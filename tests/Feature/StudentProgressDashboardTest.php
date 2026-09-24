@@ -6,12 +6,14 @@ use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\PointTransaction;
 use App\Models\SchoolClass;
+use App\Models\SchoolSetting;
 use App\Models\Semester;
 use App\Models\StudentClassHistory;
 use App\Models\StudentPointSummary;
 use App\Models\StudentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class StudentProgressDashboardTest extends TestCase
@@ -37,8 +39,9 @@ class StudentProgressDashboardTest extends TestCase
         }
 
         $this->actingAs($student)->get(route('dashboard', ['semester' => $semester->id]))
-            ->assertSee('Absensi diterima maksimal 100 meter')
-            ->assertSee('name="accuracy"', false);
+            ->assertSee('Radius sekolah 100 m')
+            ->assertSee('name="accuracy"', false)
+            ->assertSee('name="location_timestamp"', false);
     }
 
     public function test_semester_filter_only_counts_attendance_in_selected_semester(): void
@@ -63,8 +66,31 @@ class StudentProgressDashboardTest extends TestCase
             ->assertDontSee('Hadir terlambat');
     }
 
+    public function test_superadmin_dashboard_shows_podium_and_can_filter_by_class(): void
+    {
+        [$student, , , , $class] = $this->progressFixture();
+        $admin = User::query()->create([
+            'name' => 'Admin', 'email' => 'podium-admin@test.test', 'role' => 'superadmin',
+            'password' => 'password', 'must_change_password' => false, 'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->get(route('dashboard'))
+            ->assertOk()->assertSee('Podium siswa rajin')->assertSee('Raka')->assertSee('65 poin');
+        $this->get(route('dashboard', ['podium_class' => $class->id]))
+            ->assertOk()->assertSee('Podium siswa rajin')->assertSee('Raka');
+
+        $teacher = User::query()->create([
+            'name' => 'Guru', 'email' => 'podium-teacher@test.test', 'role' => 'teacher',
+            'password' => 'password', 'must_change_password' => false, 'is_active' => true,
+        ]);
+        $this->actingAs($teacher)->get(route('dashboard'))
+            ->assertOk()->assertDontSee('Podium siswa rajin');
+    }
+
     private function progressFixture(): array
     {
+        $this->travelTo(Carbon::parse('2026-09-22 06:30:00'));
+        SchoolSetting::active()->update(['latitude' => -6.2, 'longitude' => 106.8]);
         $year = AcademicYear::query()->create([
             'name' => '2026/2027', 'starts_on' => '2026-07-01', 'ends_on' => '2027-06-30', 'is_active' => true,
         ]);

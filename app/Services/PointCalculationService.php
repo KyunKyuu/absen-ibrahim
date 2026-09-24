@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\PointTransaction;
+use App\Models\StudentClassHistory;
 use App\Models\StudentPointSummary;
+use App\Models\StudentProfile;
 use App\Models\User;
 
 class PointCalculationService
@@ -48,8 +50,11 @@ class PointCalculationService
 
     public function refreshSummary(User $student): StudentPointSummary
     {
+        $periodStart = $this->currentClassPeriodStart($student);
         $totals = PointTransaction::query()
             ->where('student_user_id', $student->id)
+            ->where('id', '>', PointTransaction::query()->where('student_user_id', $student->id)->where('type', 'reset')->max('id') ?? 0)
+            ->when($periodStart, fn ($query) => $query->where('created_at', '>=', $periodStart))
             ->selectRaw("sum(case when type = 'attitude' then points else 0 end) as attitude_points")
             ->selectRaw("sum(case when type = 'attendance' then points else 0 end) as attendance_points")
             ->selectRaw("sum(case when type = 'achievement' then points else 0 end) as achievement_points")
@@ -70,6 +75,33 @@ class PointCalculationService
                 'label' => $this->labelFor($general),
             ]
         );
+    }
+
+    private function currentClassPeriodStart(User $student): ?string
+    {
+        $lastReset = PointTransaction::query()->where('student_user_id', $student->id)
+            ->where('type', 'reset')->latest('id')->first();
+        if ($lastReset) {
+            return $lastReset->created_at->toDateTimeString();
+        }
+
+        $history = StudentClassHistory::query()
+            ->where('student_user_id', $student->id)
+            ->whereNull('ended_on')
+            ->latest('started_on')
+            ->latest('id')
+            ->first();
+
+        if ($history) {
+            return $history->started_on?->startOfDay()->toDateTimeString();
+        }
+
+        $profile = StudentProfile::query()->where('user_id', $student->id)->first();
+        $classStart = $profile?->school_class_id
+            ? $profile->schoolClass?->academicYear?->starts_on
+            : null;
+
+        return $classStart?->startOfDay()->toDateTimeString();
     }
 
     public function labelFor(int $generalPoints): string

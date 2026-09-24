@@ -27,7 +27,8 @@
             </div>
             <div class="quick-list">
                 <a href="{{ route('admin.landing.hero') }}"><span>Judul & gambar utama</span><span>→</span></a>
-                <a href="{{ route('admin.landing.content', 'activity') }}"><span>Tambah konten kegiatan</span><span>→</span></a>
+                <a href="{{ route('admin.landing.profile') }}"><span>Atur video, visi-misi, dan podium poin</span><span>→</span></a>
+                <a href="{{ route('admin.landing.content', 'champion') }}"><span>Tambah juara sekolah</span><span>→</span></a>
                 <a href="{{ route('admin.landing.tuition') }}"><span>Atur biaya pendidikan</span><span>→</span></a>
             </div>
         </section>
@@ -35,7 +36,7 @@
 
     <div class="content-grid">
         <a class="section-card" href="{{ route('admin.landing.hero') }}"><span class="card-icon">H</span><h3>Hero & tombol</h3><p class="muted">Judul utama, pengantar, gambar, dan dua tombol ajakan.</p><div class="card-foot"><span>Bagian teratas situs</span><span class="arrow">→</span></div></a>
-        <a class="section-card" href="{{ route('admin.landing.profile') }}"><span class="card-icon">P</span><h3>Profil sekolah</h3><p class="muted">Judul dan narasi singkat yang mengenalkan sekolah.</p><div class="card-foot"><span>Tentang sekolah</span><span class="arrow">→</span></div></a>
+        <a class="section-card" href="{{ route('admin.landing.profile') }}"><span class="card-icon">P</span><h3>Profil, video & visi-misi</h3><p class="muted">Narasi sekolah, video besar setelah hero, visi, misi, dan pengaturan podium poin.</p><div class="card-foot"><span>Tentang sekolah</span><span class="arrow">→</span></div></a>
         <a class="section-card" href="{{ route('admin.landing.admission') }}"><span class="card-icon">A</span><h3>Admisi & kontak</h3><p class="muted">Ajakan pendaftaran, WhatsApp, email, Instagram, dan alamat.</p><div class="card-foot"><span>Informasi publik</span><span class="arrow">→</span></div></a>
         @foreach($kinds as $kind => $label)
             @php($count = $itemCounts->get($kind))

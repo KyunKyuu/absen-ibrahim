@@ -4,7 +4,6 @@
         'issue' => ['Terbitkan tagihan', 'Buat tagihan untuk seluruh siswa dalam satu kelas.'],
         'fee-types' => ['Jenis tagihan', 'Kelola master tagihan dan nominal default.'],
         'proposals' => ['Usulan biaya', 'Tinjau pengajuan biaya kegiatan dari wali kelas.'],
-        'promotions' => ['Kenaikan kelas', 'Pindahkan siswa tanpa menghilangkan riwayat tunggakan.'],
         'record-payment' => ['Catat pembayaran', 'Rekam pembayaran tunai atau transfer yang diterima tata usaha.'],
         'confirmations' => ['Verifikasi pembayaran', 'Periksa bukti pembayaran yang dikirim siswa atau orang tua.'],
         'payments' => ['Riwayat pembayaran', 'Lihat seluruh transaksi pembayaran dan status verifikasinya.'],
@@ -29,7 +28,6 @@
             <a class="{{ $section === 'issue' ? 'active' : '' }}" href="{{ route('finance.issue') }}">Terbitkan tagihan</a>
             <a class="{{ $section === 'fee-types' ? 'active' : '' }}" href="{{ route('finance.fee-types') }}">Jenis tagihan</a>
             <a class="{{ $section === 'proposals' ? 'active' : '' }}" href="{{ route('finance.proposals') }}">Usulan biaya</a>
-            @if($user->canDo('school.manage'))<a class="{{ $section === 'promotions' ? 'active' : '' }}" href="{{ route('finance.promotions') }}">Kenaikan kelas</a>@endif
             <a class="{{ $section === 'payments' ? 'active' : '' }}" href="{{ route('finance.payment-history') }}">Riwayat</a>
         @elseif($isPayer)
             <a class="{{ $section === 'bills' ? 'active' : '' }}" href="{{ route('finance.index') }}">{{ $user->hasRole('parent') ? 'Tagihan anak' : 'Tagihan saya' }}</a>
@@ -151,9 +149,5 @@
         <section class="panel"><div class="table-scroll"><table><thead><tr><th>Siswa</th><th>Tagihan</th><th>Nominal</th><th>Tanggal / metode</th><th>Status</th><th>Bukti</th><th>Catatan</th></tr></thead><tbody>
             @forelse($payments as $payment)<tr><td><strong>{{ $payment->bill?->student?->name }}</strong></td><td>{{ $payment->bill?->title }}</td><td>Rp{{ number_format($payment->amount, 0, ',', '.') }}</td><td>{{ $payment->paid_on?->format('d M Y') }}<br><span class="muted">{{ ucfirst($payment->payment_method) }}</span></td><td><span class="badge {{ $payment->status === 'rejected' ? 'priority' : '' }}">{{ $payment->status }}</span></td><td>@if($payment->proof_path)<a href="{{ route('finance.payments.proof', $payment) }}" target="_blank">Lihat bukti</a>@else-@endif</td><td>{{ $payment->review_notes ?: $payment->notes ?: '-' }}</td></tr>@empty<tr><td colspan="7" class="muted">Belum ada riwayat pembayaran.</td></tr>@endforelse
         </tbody></table></div><div style="margin-top:14px">{{ $payments->links() }}</div></section>
-    @else
-        <section class="panel"><div class="alert">Tagihan lama yang belum lunas tetap dibawa dan otomatis ditandai sebagai tunggakan.</div>
-            @forelse($students as $student)<form class="promotion-row" method="post" action="{{ route('finance.students.promote', $student) }}">@csrf<span><strong>{{ $student->name }}</strong><br><span class="muted">{{ $student->studentProfile?->schoolClass?->name ?? 'Belum ada kelas' }}</span></span><select name="school_class_id" required>@foreach($classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select><button class="btn" type="submit">Pindahkan</button></form>@empty<div class="empty-state">Belum ada siswa.</div>@endforelse
-        </section>
     @endif
 </x-layouts.app>

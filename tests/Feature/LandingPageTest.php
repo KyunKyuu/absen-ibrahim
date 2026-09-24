@@ -25,7 +25,7 @@ class LandingPageTest extends TestCase
 
         $teacherResponse = $this->actingAs($teacher)->get(route('admin.landing.index'));
         $this->assertSame(403, $teacherResponse->status(), (string) $teacherResponse->headers->get('Location'));
-        $this->actingAs($superadmin)->get(route('admin.landing.index'))->assertOk()->assertSee('Tambah konten');
+        $this->actingAs($superadmin)->get(route('admin.landing.index'))->assertOk()->assertSee('Tambah juara sekolah');
     }
 
     public function test_landing_manager_is_split_into_focused_pages(): void
@@ -87,6 +87,38 @@ class LandingPageTest extends TestCase
         ]);
 
         $this->get(route('landing'))->assertOk()->assertDontSee('Konten Rahasia');
+    }
+
+    public function test_landing_homepage_shows_video_vision_mission_and_published_champions(): void
+    {
+        \App\Models\LandingPage::query()->create([
+            ...\App\Models\LandingPage::defaults(),
+            'video_title' => 'Tur sekolah',
+            'video_url' => 'https://youtu.be/abcdefghijk',
+            'vision' => 'Menjadi sekolah berkarakter.',
+            'mission' => "Mendidik dengan teladan.\nMembangun kemandirian.",
+        ]);
+        LandingItem::query()->create([
+            'kind' => 'champion', 'title' => 'Alya juara sains', 'kicker' => 'Olimpiade 2026',
+            'body' => 'Juara satu tingkat kota.', 'sort_order' => 1, 'is_active' => true,
+        ]);
+        LandingItem::query()->create([
+            'kind' => 'champion', 'title' => 'Juara draf', 'sort_order' => 2, 'is_active' => false,
+        ]);
+
+        $this->get(route('landing'))->assertOk()
+            ->assertSee('Tur sekolah')->assertSee('youtube-nocookie.com/embed/abcdefghijk')
+            ->assertSee('Menjadi sekolah berkarakter.')
+            ->assertSee('Mendidik dengan teladan.')
+            ->assertSee('Alya juara sains')
+            ->assertDontSee('Juara draf');
+    }
+
+    public function test_homepage_does_not_display_internal_student_podium(): void
+    {
+        $this->get(route('landing'))->assertOk()
+            ->assertDontSee('Podium siswa berdasarkan poin')
+            ->assertDontSee('siswa-rajin');
     }
 
     public function test_superadmin_can_manage_a_tuition_package_and_publish_it(): void

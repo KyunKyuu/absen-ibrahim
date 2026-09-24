@@ -7,6 +7,8 @@
     <div class="page-heading"><div class="page-heading-copy"><div class="breadcrumb"><span>Penilaian</span><span>/</span><span>{{ $isAttitude ? 'Sikap' : 'Prestasi & pelanggaran' }}</span></div><h1>{{ $isAttitude ? 'Penilaian sikap' : 'Prestasi & pelanggaran' }}</h1><p class="muted">Pilih kelas dan siswa, lalu poin perkembangan akan dihitung otomatis.</p></div></div>
     <nav class="section-tabs"><a class="{{ $isAttitude ? 'active' : '' }}" href="{{ route('teacher.assessments', ['class' => $selectedClassId]) }}">Penilaian sikap</a><a class="{{ ! $isAttitude ? 'active' : '' }}" href="{{ route('teacher.assessments.achievements', ['class' => $selectedClassId]) }}">Prestasi & pelanggaran</a></nav>
 
+    @if($errors->any())<div class="alert error" style="margin:18px 0">{{ $errors->first() }}</div>@endif
+
     @if($classes->isEmpty())
         <div class="empty-state">Anda belum ditugaskan sebagai wali kelas atau guru mata pelajaran. Hubungi administrator sekolah.</div>
     @else
@@ -34,8 +36,9 @@
 
                     <div style="border-top:1px solid var(--line);padding-top:18px">
                         <div class="step"><span class="step-number">3</span><h2 style="margin:0">Beri penilaian</h2></div>
-                        @if($subjects->isNotEmpty())<label style="margin-bottom:15px">Mata pelajaran<select name="subject_id"><option value="">Penilaian umum</option>@foreach($subjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select></label>@endif
+                        @if($subjects->isNotEmpty())<label style="margin-bottom:15px">Mata pelajaran<select name="subject_id" {{ $isAttitude ? 'required' : '' }}><option value="">Pilih mata pelajaran</option>@foreach($subjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select></label>@endif
                         @if($isAttitude)
+                            <div class="form-grid" style="margin-bottom:15px"><label>Semester<select name="semester_id" required>@foreach($semesters as $semester)<option value="{{ $semester->id }}">{{ $semester->name }} · sisa kredit {{ $attitudeCreditBalance }}</option>@endforeach</select></label><label>Kredit terpakai<input id="attitude-credit-cost" name="credit_cost" type="number" min="1" max="100" value="5" readonly required><span class="field-help">Kuota selalu positif. Dampak poin siswa dapat positif atau minus sesuai skor.</span></label></div>
                             <label style="margin-bottom:15px">Aspek<select name="aspect" required><option>Disiplin</option><option>Tanggung Jawab</option><option>Kerja Sama</option><option>Kejujuran</option><option>Sopan Santun</option><option>Kepemimpinan</option></select></label>
                             <div class="score-grid" style="margin-bottom:15px">
                                 @foreach([5 => ['Sangat Baik', 5], 4 => ['Baik', 3], 3 => ['Cukup', 1], 2 => ['Kurang', -3], 1 => ['Buruk', -5]] as $score => [$label, $points])
@@ -84,7 +87,7 @@
                 document.getElementById('level-progress').style.setProperty('--progress', Math.max(0, Math.min(100, points)) + '%');
             }));
             document.querySelectorAll('[name="score"]').forEach((input) => input.addEventListener('change', () => {
-                const points = Number(input.dataset.points); document.getElementById('point-impact').textContent = (points > 0 ? '+' : '') + points;
+                const points = Number(input.dataset.points); document.getElementById('point-impact').textContent = (points > 0 ? '+' : '') + points; if (document.getElementById('attitude-credit-cost')) document.getElementById('attitude-credit-cost').value = Math.abs(points);
             }));
             const achievementPoints = document.getElementById('achievement-points');
             achievementPoints?.addEventListener('input', () => { const points = Number(achievementPoints.value || 0); document.getElementById('point-impact').textContent = (points > 0 ? '+' : '') + points; });

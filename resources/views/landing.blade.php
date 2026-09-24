@@ -45,6 +45,23 @@
         .hero-seal { position:absolute; left:0; bottom:0; width:130px; aspect-ratio:1; display:grid; place-content:center; padding:20px; color:#fff; background:var(--orange); border:7px solid var(--paper); border-radius:50%; text-align:center; font-family:"Newsreader",serif; font-size:18px; line-height:1.05; transform:rotate(-8deg); }
         .hero-note { position:absolute; right:0; bottom:38px; width:205px; padding:17px 18px; background:var(--paper); border:1px solid var(--line); box-shadow:0 16px 36px rgba(28,45,39,.14); font-size:12px; line-height:1.5; }
         .hero-note strong { display:block; margin-bottom:4px; color:var(--pine); font-size:15px; }
+        .school-video { width:100%; padding:0 0 85px; }
+        .school-video-frame { position:relative; overflow:hidden; width:100%; min-height:62vh; aspect-ratio:16/7; background:#102e28; }
+        .school-video-frame iframe,.school-video-frame video { position:absolute; inset:0; width:100%; height:100%; border:0; }
+        .school-video h2 { margin:0 0 24px; font-size:clamp(32px,4vw,52px); font-weight:500; }
+        .vision-mission { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+        .vision-card,.mission-card { padding:32px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.04); }
+        .vision-mission h3 { color:var(--leaf); font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
+        .vision-mission p,.vision-mission li { color:rgba(255,255,255,.8); font-size:16px; line-height:1.8; }
+        .vision-mission ul { margin:0; padding-left:20px; }
+        .champions { background:#eef1e8; }
+        .champion-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+        .champion-card { overflow:hidden; background:var(--paper); border:1px solid var(--line); }
+        .champion-image { aspect-ratio:16/10; background:linear-gradient(135deg,#749283,#cad5aa) center/cover; }
+        .champion-copy { padding:22px; }
+        .champion-copy small { color:var(--orange); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+        .champion-copy h3 { margin:8px 0; font-family:"Newsreader",serif; font-size:25px; }
+        .champion-copy p { margin:0; color:var(--muted); font-size:13px; line-height:1.7; }
         .stats { display:grid; grid-template-columns:repeat(4,1fr); border-block:1px solid var(--line); }
         .stat { padding:38px 20px; text-align:center; border-right:1px solid var(--line); }
         .stat:last-child { border-right:0; }
@@ -118,8 +135,8 @@
         footer p,footer a { font-size:13px; line-height:1.7; }
         footer a:hover { color:#fff; }
         .copyright { margin-top:55px; padding-top:22px; border-top:1px solid rgba(255,255,255,.12); font-size:11px; }
-        @media(max-width:900px){ .nav-links a:not(.nav-login){display:none}.hero-grid,.philosophy-grid,.voices-grid,.admission-box{grid-template-columns:1fr}.hero{padding-top:45px}.hero-art{min-height:480px}.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:0}.program-grid,.tuition-grid{grid-template-columns:1fr 1fr}.activity-card,.activity-card:first-child,.activity-card:nth-child(2){grid-column:span 6}.philosophy-grid{gap:50px}.section-head{display:block}.section-head p{margin-top:18px}.admission .button{justify-self:start}.footer-grid{grid-template-columns:1fr 1fr}.footer-grid>div:first-child{grid-column:1/-1} }
-        @media(max-width:620px){ .container{width:min(100% - 28px,1180px)}.notice{font-size:10px}.nav-wrap{min-height:68px}.identity{font-size:13px}.identity-mark{width:34px;height:38px}.nav-login{padding:9px 13px}.hero{min-height:auto;padding-bottom:45px}.hero-grid{gap:38px}h1{font-size:52px}.hero-art{min-height:390px}.hero-photo{inset:0 0 15px 25px}.hero-note{display:none}.hero-seal{width:105px;font-size:14px}.stats{margin-inline:-14px}.stat{padding:25px 8px}.stat strong{font-size:32px}.stat span{font-size:9px}.section{padding:76px 0}.section-head h2,.voices-label h2{font-size:42px}.program-grid,.tuition-grid{grid-template-columns:1fr}.program-card{min-height:260px}.program-card h3{margin-top:43px}.tuition-card.featured{transform:none}.arabic-mark{width:130px;height:150px;font-size:48px}.activity-card,.activity-card:first-child,.activity-card:nth-child(2){grid-column:1/-1}.quote-card{padding:48px 27px 30px}.admission{padding:20px 0}.admission-box{padding:40px 27px}.admission h2{font-size:43px}.footer-grid{grid-template-columns:1fr;gap:30px}.footer-grid>div:first-child{grid-column:auto} }
+        @media(max-width:900px){ .nav-links a:not(.nav-login){display:none}.hero-grid,.philosophy-grid,.voices-grid,.admission-box{grid-template-columns:1fr}.hero{padding-top:45px}.hero-art{min-height:480px}.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:0}.program-grid,.tuition-grid{grid-template-columns:1fr 1fr}.champion-grid{grid-template-columns:1fr 1fr}.activity-card,.activity-card:first-child,.activity-card:nth-child(2){grid-column:span 6}.philosophy-grid{gap:50px}.section-head{display:block}.section-head p{margin-top:18px}.admission .button{justify-self:start}.footer-grid{grid-template-columns:1fr 1fr}.footer-grid>div:first-child{grid-column:1/-1} }
+        @media(max-width:620px){ .container{width:min(100% - 28px,1180px)}.notice{font-size:10px}.nav-wrap{min-height:68px}.identity{font-size:13px}.identity-mark{width:34px;height:38px}.nav-login{padding:9px 13px}.hero{min-height:auto;padding-bottom:45px}.hero-grid{gap:38px}h1{font-size:52px}.hero-art{min-height:390px}.hero-photo{inset:0 0 15px 25px}.hero-note{display:none}.hero-seal{width:105px;font-size:14px}.school-video-frame{min-height:48vh;aspect-ratio:16/10}.stats{margin-inline:-14px}.stat{padding:25px 8px}.stat strong{font-size:32px}.stat span{font-size:9px}.section{padding:76px 0}.section-head h2,.voices-label h2{font-size:42px}.program-grid,.tuition-grid,.champion-grid,.vision-mission{grid-template-columns:1fr}.program-card{min-height:260px}.program-card h3{margin-top:43px}.tuition-card.featured{transform:none}.arabic-mark{width:130px;height:150px;font-size:48px}.activity-card,.activity-card:first-child,.activity-card:nth-child(2){grid-column:1/-1}.quote-card{padding:48px 27px 30px}.admission{padding:20px 0}.admission-box{padding:40px 27px}.admission h2{font-size:43px}.footer-grid{grid-template-columns:1fr;gap:30px}.footer-grid>div:first-child{grid-column:auto} }
     </style>
 </head>
 <body>
@@ -157,6 +174,26 @@
                 </div>
             </div>
         </section>
+
+        @if($page->video_url)
+            @php
+                $videoUrl = $page->video_url;
+                $videoEmbed = null;
+                if (preg_match('~(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([A-Za-z0-9_-]{6,})~', $videoUrl, $videoMatch)) {
+                    $videoEmbed = 'https://www.youtube-nocookie.com/embed/'.$videoMatch[1];
+                } elseif (preg_match('~vimeo\.com/(?:video/)?([0-9]+)~', $videoUrl, $videoMatch)) {
+                    $videoEmbed = 'https://player.vimeo.com/video/'.$videoMatch[1];
+                }
+            @endphp
+            <section class="school-video" aria-label="Video sekolah">
+                @if($page->video_title)<div class="container"><h2>{{ $page->video_title }}</h2></div>@endif
+                <div class="school-video-frame">
+                    @if($videoEmbed)<iframe src="{{ $videoEmbed }}" title="{{ $page->video_title ?: 'Video sekolah' }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                    @elseif(str_ends_with(strtolower(parse_url($videoUrl, PHP_URL_PATH) ?? ''), '.mp4'))<video controls preload="metadata"><source src="{{ $videoUrl }}" type="video/mp4">Browser Anda tidak mendukung video.</video>
+                    @else<a href="{{ $videoUrl }}" target="_blank" rel="noopener" style="position:absolute;inset:0;display:grid;place-items:center;color:white">Tonton video sekolah ↗</a>@endif
+                </div>
+            </section>
+        @endif
 
         @if($statistics->isNotEmpty())
             <div class="container stats" aria-label="Statistik sekolah">
@@ -204,7 +241,14 @@
         <section class="section philosophy" id="tentang">
             <div class="container philosophy-grid">
                 <div class="arabic-mark" aria-hidden="true">اقرأ</div>
-                <div><p class="eyebrow" style="color:var(--leaf)">Tentang kami</p><h2>{{ $page->about_title }}</h2><p>{{ $page->about_body }}</p></div>
+                <div><p class="eyebrow" style="color:var(--leaf)">Tentang kami</p><h2>{{ $page->about_title }}</h2><p>{{ $page->about_body }}</p>
+                    @if($page->vision || $page->mission)
+                        <div class="vision-mission">
+                            @if($page->vision)<div class="vision-card"><h3>Visi</h3><p>{{ $page->vision }}</p></div>@endif
+                            @if($page->mission)<div class="mission-card"><h3>Misi</h3><ul>@foreach(preg_split('/\r\n|\r|\n/', $page->mission) as $missionLine) @if(trim($missionLine))<li>{{ trim($missionLine) }}</li>@endif @endforeach</ul></div>@endif
+                        </div>
+                    @endif
+                </div>
             </div>
         </section>
 
@@ -217,6 +261,22 @@
                             <article class="activity-card">
                                 <div class="activity-image" @if($activity->image_url) style="background-image:url('{{ $activity->image_url }}')" @endif></div>
                                 <div class="activity-body"><small>{{ $activity->kicker ?: $activity->published_at?->translatedFormat('d F Y') }}</small><h3>{{ $activity->title }}</h3><p>{{ $activity->body }}</p></div>
+                            </article>
+                        @endforeach
+                    </div>
+                </div>
+            </section>
+        @endif
+
+        @if($champions->isNotEmpty())
+            <section class="section champions" id="juara">
+                <div class="container">
+                    <div class="section-head"><h2>Prestasi dan kebanggaan siswa.</h2><p>Apresiasi untuk ikhtiar, keberanian, dan karya terbaik anak-anak.</p></div>
+                    <div class="champion-grid">
+                        @foreach($champions->take(6) as $champion)
+                            <article class="champion-card">
+                                @if($champion->image_url)<div class="champion-image" style="background-image:url('{{ $champion->image_url }}')"></div>@endif
+                                <div class="champion-copy"><small>{{ $champion->kicker ?: 'Prestasi siswa' }}</small><h3>{{ $champion->title }}</h3><p>{{ $champion->body }}</p></div>
                             </article>
                         @endforeach
                     </div>

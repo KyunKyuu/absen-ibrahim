@@ -11,7 +11,7 @@
     ])
 
     <nav class="section-tabs" aria-label="Jenis konten" style="margin-top:-12px">
-        @foreach(['program' => 'Program', 'activity' => 'Kegiatan', 'testimonial' => 'Testimoni', 'statistic' => 'Statistik'] as $tabKind => $tabLabel)
+        @foreach(['program' => 'Program', 'activity' => 'Kegiatan', 'champion' => 'Juara', 'testimonial' => 'Testimoni', 'statistic' => 'Statistik'] as $tabKind => $tabLabel)
             <a class="{{ $kind === $tabKind ? 'active' : '' }}" href="{{ route('admin.landing.content', $tabKind) }}">{{ $tabLabel }}</a>
         @endforeach
     </nav>
@@ -22,7 +22,7 @@
             <form class="stack" method="post" action="{{ route('admin.landing.items.store') }}">
                 @csrf
                 <input type="hidden" name="kind" value="{{ $kind }}">
-                <label>{{ $kind === 'statistic' ? 'Nilai statistik' : ($kind === 'testimonial' ? 'Nama pemberi testimoni' : 'Judul') }}<input name="title" value="{{ old('title') }}" required></label>
+                <label>{{ $kind === 'statistic' ? 'Nilai statistik' : (in_array($kind, ['testimonial', 'champion']) ? 'Nama' : 'Judul') }}<input name="title" value="{{ old('title') }}" required></label>
                 <label>{{ $kind === 'testimonial' ? 'Peran' : 'Label kecil' }}<input name="kicker" value="{{ old('kicker') }}" placeholder="{{ $kind === 'testimonial' ? 'Orang tua siswa' : 'Opsional' }}"></label>
                 <label>{{ $kind === 'testimonial' ? 'Kutipan' : 'Deskripsi' }}<textarea name="body">{{ old('body') }}</textarea></label>
                 @if(in_array($kind, ['program', 'activity'], true))
