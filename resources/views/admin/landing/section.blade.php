@@ -29,11 +29,11 @@
                     <hr style="border:0;border-top:1px solid var(--line);width:100%">
                     <h3>Video sekolah</h3>
                     <label>Judul video<input name="video_title" value="{{ old('video_title', $page->video_title) }}" maxlength="160" placeholder="Mengenal Sekolah Ibrahim"></label>
-                    <label>URL video<input name="video_url" type="url" value="{{ old('video_url', $page->video_url) }}" placeholder="https://www.youtube.com/watch?v=..."><span class="field-help">Masukkan tautan YouTube, Vimeo, atau tautan video langsung. Bagian ini tampil tepat setelah hero.</span></label>
+                    <label>URL video<input name="video_url" type="url" value="{{ old('video_url', $page->video_url) }}" placeholder="https://www.youtube.com/watch?v=..."><span class="field-help">Bagian video tampil selebar layar tepat setelah hero. Jika dikosongkan, homepage memakai video contoh sementara.</span></label>
                     <hr style="border:0;border-top:1px solid var(--line);width:100%">
                     <h3>Visi dan misi</h3>
-                    <label>Visi sekolah<textarea name="vision" maxlength="1500">{{ old('vision', $page->vision) }}</textarea></label>
-                    <label>Misi sekolah<textarea name="mission" maxlength="3000" style="min-height:150px">{{ old('mission', $page->mission) }}</textarea><span class="field-help">Tulis satu misi per baris.</span></label>
+                    <label>Visi sekolah<textarea name="vision" maxlength="1500">{{ old('vision', $page->vision ?: \App\Models\LandingPage::defaults()['vision']) }}</textarea></label>
+                    <label>Misi sekolah<textarea name="mission" maxlength="3000" style="min-height:150px">{{ old('mission', $page->mission ?: \App\Models\LandingPage::defaults()['mission']) }}</textarea><span class="field-help">Tulis satu misi per baris.</span></label>
                 @else
                     <label>Judul ajakan pendaftaran<input name="admission_title" value="{{ old('admission_title', $page->admission_title) }}" maxlength="160" required></label>
                     <label>Keterangan pendaftaran<textarea name="admission_body" maxlength="1000" required>{{ old('admission_body', $page->admission_body) }}</textarea></label>

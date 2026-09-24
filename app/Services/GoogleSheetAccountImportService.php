@@ -19,6 +19,50 @@ use Illuminate\Validation\ValidationException;
 
 class GoogleSheetAccountImportService
 {
+    public function templateContents(Role $role): string
+    {
+        $headers = ['nama', 'username', 'email'];
+        if ($role->name === 'student') {
+            $headers = [...$headers, 'nis', 'kelas'];
+        } elseif ($role->name === 'teacher') {
+            $headers[] = 'nip';
+        } elseif ($role->name === 'parent') {
+            $headers[] = 'phone';
+        }
+
+        $cells = '';
+        foreach ($headers as $index => $header) {
+            $column = $this->columnLetters($index + 1);
+            $cells .= '<c r="'.$column.'1" t="inlineStr"><is><t>'.htmlspecialchars($header, ENT_XML1 | ENT_QUOTES, 'UTF-8').'</t></is></c>';
+        }
+
+        $files = [
+            '[Content_Types].xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+            '_rels/.rels' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+            'xl/workbook.xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Akun" sheetId="1" r:id="rId1"/></sheets></workbook>',
+            'xl/_rels/workbook.xml.rels' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+            'xl/worksheets/sheet1.xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">'.$cells.'</row></sheetData></worksheet>',
+        ];
+
+        $path = tempnam(sys_get_temp_dir(), 'account-template-');
+        $zip = new \ZipArchive;
+        if ($path === false || $zip->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Template Excel tidak dapat dibuat.');
+        }
+        foreach ($files as $name => $contents) {
+            $zip->addFromString($name, $contents);
+        }
+        $zip->close();
+        $contents = file_get_contents($path);
+        @unlink($path);
+
+        if ($contents === false) {
+            throw new \RuntimeException('Template Excel tidak dapat dibaca.');
+        }
+
+        return $contents;
+    }
+
     public function import(string $sheetUrl, Role $role): array
     {
         try {
@@ -143,6 +187,18 @@ class GoogleSheetAccountImportService
         }
 
         return $index - 1;
+    }
+
+    private function columnLetters(int $number): string
+    {
+        $letters = '';
+        while ($number > 0) {
+            $number--;
+            $letters = chr(65 + ($number % 26)).$letters;
+            $number = intdiv($number, 26);
+        }
+
+        return $letters;
     }
 
     private function exportUrl(string $sheetUrl): string

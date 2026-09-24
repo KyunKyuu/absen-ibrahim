@@ -46,22 +46,38 @@
         .hero-note { position:absolute; right:0; bottom:38px; width:205px; padding:17px 18px; background:var(--paper); border:1px solid var(--line); box-shadow:0 16px 36px rgba(28,45,39,.14); font-size:12px; line-height:1.5; }
         .hero-note strong { display:block; margin-bottom:4px; color:var(--pine); font-size:15px; }
         .school-video { width:100%; padding:0 0 85px; }
-        .school-video-frame { position:relative; overflow:hidden; width:100%; min-height:62vh; aspect-ratio:16/7; background:#102e28; }
+        .school-video-frame { position:relative; overflow:hidden; width:100%; height:min(78vh,820px); min-height:520px; background:#102e28; }
         .school-video-frame iframe,.school-video-frame video { position:absolute; inset:0; width:100%; height:100%; border:0; }
-        .school-video h2 { margin:0 0 24px; font-size:clamp(32px,4vw,52px); font-weight:500; }
-        .vision-mission { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
-        .vision-card,.mission-card { padding:32px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.04); }
-        .vision-mission h3 { color:var(--leaf); font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
-        .vision-mission p,.vision-mission li { color:rgba(255,255,255,.8); font-size:16px; line-height:1.8; }
-        .vision-mission ul { margin:0; padding-left:20px; }
-        .champions { background:#eef1e8; }
+        .school-video-title { margin:0 0 22px; font-size:clamp(32px,4vw,52px); font-weight:500; }
+        .vision-mission-section { position:relative; overflow:hidden; background:#eef1e8; }
+        .vision-mission-layout { display:grid; grid-template-columns:.72fr 1.28fr; gap:70px; align-items:center; }
+        .vision-intro .eyebrow { color:var(--pine-2); }
+        .vision-intro h2 { margin:0 0 18px; color:var(--pine); font-size:clamp(42px,5vw,68px); font-weight:500; line-height:.98; }
+        .vision-intro p { color:var(--muted); line-height:1.8; }
+        .vision-cards { display:grid; grid-template-columns:.8fr 1.2fr; gap:14px; }
+        .vision-card,.mission-card { position:relative; min-height:260px; padding:30px; border-radius:8px; box-shadow:0 16px 40px rgba(18,63,54,.08); }
+        .vision-card { display:flex; flex-direction:column; justify-content:space-between; color:#fff; background:var(--pine); }
+        .mission-card { background:var(--paper); border:1px solid #d3dbcf; }
+        .vision-mission h3 { margin-bottom:22px; color:var(--orange); font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
+        .vision-card h3 { color:var(--leaf); }
+        .vision-card p { margin:0; font-family:"Newsreader",Georgia,serif; font-size:clamp(25px,2.5vw,35px); line-height:1.25; }
+        .mission-card ol { display:grid; gap:13px; margin:0; padding:0; list-style:none; counter-reset:mission; }
+        .mission-card li { display:grid; grid-template-columns:27px 1fr; gap:10px; color:#53625c; font-size:14px; line-height:1.65; counter-increment:mission; }
+        .mission-card li::before { content:counter(mission,decimal-leading-zero); color:var(--pine-2); font-size:11px; font-weight:800; }
+        .champions { position:relative; overflow:hidden; background:#f2eadb; }
+        .champions .section-head h2 { color:var(--pine); }
         .champion-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
-        .champion-card { overflow:hidden; background:var(--paper); border:1px solid var(--line); }
+        .champion-card { overflow:hidden; background:var(--paper); border:1px solid #ded9ca; border-radius:8px; transition:transform .22s ease,box-shadow .22s ease; }
+        .champion-card:hover { transform:translateY(-5px); box-shadow:0 18px 40px rgba(18,63,54,.12); }
         .champion-image { aspect-ratio:16/10; background:linear-gradient(135deg,#749283,#cad5aa) center/cover; }
-        .champion-copy { padding:22px; }
-        .champion-copy small { color:var(--orange); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
-        .champion-copy h3 { margin:8px 0; font-family:"Newsreader",serif; font-size:25px; }
+        .champion-copy { padding:23px; }
+        .champion-copy small { display:inline-flex; padding:6px 9px; color:var(--pine); background:#e6eddd; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+        .champion-copy h3 { margin:14px 0 9px; color:var(--pine); font-family:"Newsreader",serif; font-size:27px; }
         .champion-copy p { margin:0; color:var(--muted); font-size:13px; line-height:1.7; }
+        .achievement-empty { display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:center; max-width:760px; padding:28px; border:1px dashed #b8c5b1; border-radius:10px; background:rgba(255,255,255,.52); }
+        .achievement-mark { width:54px;height:54px;display:grid;place-items:center;border-radius:50%;color:#6e4812;background:#f3dc97;font-size:25px; }
+        .achievement-empty strong { display:block;margin-bottom:5px;color:var(--pine);font-family:"Newsreader",serif;font-size:24px; }
+        .achievement-empty p { margin:0;color:var(--muted);line-height:1.7; }
         .stats { display:grid; grid-template-columns:repeat(4,1fr); border-block:1px solid var(--line); }
         .stat { padding:38px 20px; text-align:center; border-right:1px solid var(--line); }
         .stat:last-child { border-right:0; }
@@ -135,8 +151,8 @@
         footer p,footer a { font-size:13px; line-height:1.7; }
         footer a:hover { color:#fff; }
         .copyright { margin-top:55px; padding-top:22px; border-top:1px solid rgba(255,255,255,.12); font-size:11px; }
-        @media(max-width:900px){ .nav-links a:not(.nav-login){display:none}.hero-grid,.philosophy-grid,.voices-grid,.admission-box{grid-template-columns:1fr}.hero{padding-top:45px}.hero-art{min-height:480px}.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:0}.program-grid,.tuition-grid{grid-template-columns:1fr 1fr}.champion-grid{grid-template-columns:1fr 1fr}.activity-card,.activity-card:first-child,.activity-card:nth-child(2){grid-column:span 6}.philosophy-grid{gap:50px}.section-head{display:block}.section-head p{margin-top:18px}.admission .button{justify-self:start}.footer-grid{grid-template-columns:1fr 1fr}.footer-grid>div:first-child{grid-column:1/-1} }
-        @media(max-width:620px){ .container{width:min(100% - 28px,1180px)}.notice{font-size:10px}.nav-wrap{min-height:68px}.identity{font-size:13px}.identity-mark{width:34px;height:38px}.nav-login{padding:9px 13px}.hero{min-height:auto;padding-bottom:45px}.hero-grid{gap:38px}h1{font-size:52px}.hero-art{min-height:390px}.hero-photo{inset:0 0 15px 25px}.hero-note{display:none}.hero-seal{width:105px;font-size:14px}.school-video-frame{min-height:48vh;aspect-ratio:16/10}.stats{margin-inline:-14px}.stat{padding:25px 8px}.stat strong{font-size:32px}.stat span{font-size:9px}.section{padding:76px 0}.section-head h2,.voices-label h2{font-size:42px}.program-grid,.tuition-grid,.champion-grid,.vision-mission{grid-template-columns:1fr}.program-card{min-height:260px}.program-card h3{margin-top:43px}.tuition-card.featured{transform:none}.arabic-mark{width:130px;height:150px;font-size:48px}.activity-card,.activity-card:first-child,.activity-card:nth-child(2){grid-column:1/-1}.quote-card{padding:48px 27px 30px}.admission{padding:20px 0}.admission-box{padding:40px 27px}.admission h2{font-size:43px}.footer-grid{grid-template-columns:1fr;gap:30px}.footer-grid>div:first-child{grid-column:auto} }
+        @media(max-width:900px){ .nav-links a:not(.nav-login){display:none}.hero-grid,.philosophy-grid,.vision-mission-layout,.voices-grid,.admission-box{grid-template-columns:1fr}.hero{padding-top:45px}.hero-art{min-height:480px}.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:0}.program-grid,.tuition-grid{grid-template-columns:1fr 1fr}.champion-grid{grid-template-columns:1fr 1fr}.activity-card,.activity-card:first-child,.activity-card:nth-child(2){grid-column:span 6}.philosophy-grid{gap:50px}.vision-mission-layout{gap:32px}.section-head{display:block}.section-head p{margin-top:18px}.admission .button{justify-self:start}.footer-grid{grid-template-columns:1fr 1fr}.footer-grid>div:first-child{grid-column:1/-1} }
+        @media(max-width:620px){ .container{width:min(100% - 28px,1180px)}.notice{font-size:10px}.nav-wrap{min-height:68px}.identity{font-size:13px}.identity-mark{width:34px;height:38px}.nav-login{padding:9px 13px}.hero{min-height:auto;padding-bottom:45px}.hero-grid{gap:38px}h1{font-size:52px}.hero-art{min-height:390px}.hero-photo{inset:0 0 15px 25px}.hero-note{display:none}.hero-seal{width:105px;font-size:14px}.school-video{padding-bottom:60px}.school-video-frame{height:52vh;min-height:350px}.stats{margin-inline:-14px}.stat{padding:25px 8px}.stat strong{font-size:32px}.stat span{font-size:9px}.section{padding:76px 0}.section-head h2,.voices-label h2{font-size:42px}.program-grid,.tuition-grid,.champion-grid,.vision-cards{grid-template-columns:1fr}.vision-card,.mission-card{min-height:auto;padding:25px}.vision-card p{font-size:30px}.achievement-empty{grid-template-columns:1fr;padding:23px}.program-card{min-height:260px}.program-card h3{margin-top:43px}.tuition-card.featured{transform:none}.arabic-mark{width:130px;height:150px;font-size:48px}.activity-card,.activity-card:first-child,.activity-card:nth-child(2){grid-column:1/-1}.quote-card{padding:48px 27px 30px}.admission{padding:20px 0}.admission-box{padding:40px 27px}.admission h2{font-size:43px}.footer-grid{grid-template-columns:1fr;gap:30px}.footer-grid>div:first-child{grid-column:auto} }
     </style>
 </head>
 <body>
@@ -148,7 +164,7 @@
                 <span>{{ $school->school_name }}<small>Sekolah Islam</small></span>
             </a>
             <nav class="nav-links" aria-label="Navigasi utama">
-                <a href="#tentang">Tentang</a><a href="#program">Program</a><a href="#biaya">Biaya</a><a href="#kegiatan">Kegiatan</a><a href="#pendaftaran">Pendaftaran</a>
+                <a href="#tentang">Tentang</a><a href="#visi-misi">Visi & Misi</a><a href="#program">Program</a><a href="#juara">Prestasi</a><a href="#pendaftaran">Pendaftaran</a>
                 <a class="nav-login" href="{{ auth()->check() ? route('dashboard') : route('login') }}">{{ auth()->check() ? 'Dashboard' : 'Portal Sekolah' }}</a>
             </nav>
         </div>
@@ -175,25 +191,24 @@
             </div>
         </section>
 
-        @if($page->video_url)
-            @php
-                $videoUrl = $page->video_url;
+        @php
+                $videoUrl = $page->video_url ?: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
+                $videoTitle = $page->video_title ?: 'Video Profil Sekolah (Contoh)';
                 $videoEmbed = null;
                 if (preg_match('~(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([A-Za-z0-9_-]{6,})~', $videoUrl, $videoMatch)) {
                     $videoEmbed = 'https://www.youtube-nocookie.com/embed/'.$videoMatch[1];
                 } elseif (preg_match('~vimeo\.com/(?:video/)?([0-9]+)~', $videoUrl, $videoMatch)) {
                     $videoEmbed = 'https://player.vimeo.com/video/'.$videoMatch[1];
                 }
-            @endphp
-            <section class="school-video" aria-label="Video sekolah">
-                @if($page->video_title)<div class="container"><h2>{{ $page->video_title }}</h2></div>@endif
+        @endphp
+        <section class="school-video" aria-label="Video sekolah">
+                <div class="container"><h2 class="school-video-title">{{ $videoTitle }}</h2></div>
                 <div class="school-video-frame">
-                    @if($videoEmbed)<iframe src="{{ $videoEmbed }}" title="{{ $page->video_title ?: 'Video sekolah' }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                    @if($videoEmbed)<iframe src="{{ $videoEmbed }}" title="{{ $videoTitle }}" loading="eager" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
                     @elseif(str_ends_with(strtolower(parse_url($videoUrl, PHP_URL_PATH) ?? ''), '.mp4'))<video controls preload="metadata"><source src="{{ $videoUrl }}" type="video/mp4">Browser Anda tidak mendukung video.</video>
                     @else<a href="{{ $videoUrl }}" target="_blank" rel="noopener" style="position:absolute;inset:0;display:grid;place-items:center;color:white">Tonton video sekolah ↗</a>@endif
                 </div>
-            </section>
-        @endif
+        </section>
 
         @if($statistics->isNotEmpty())
             <div class="container stats" aria-label="Statistik sekolah">
@@ -241,13 +256,20 @@
         <section class="section philosophy" id="tentang">
             <div class="container philosophy-grid">
                 <div class="arabic-mark" aria-hidden="true">اقرأ</div>
-                <div><p class="eyebrow" style="color:var(--leaf)">Tentang kami</p><h2>{{ $page->about_title }}</h2><p>{{ $page->about_body }}</p>
-                    @if($page->vision || $page->mission)
-                        <div class="vision-mission">
-                            @if($page->vision)<div class="vision-card"><h3>Visi</h3><p>{{ $page->vision }}</p></div>@endif
-                            @if($page->mission)<div class="mission-card"><h3>Misi</h3><ul>@foreach(preg_split('/\r\n|\r|\n/', $page->mission) as $missionLine) @if(trim($missionLine))<li>{{ trim($missionLine) }}</li>@endif @endforeach</ul></div>@endif
-                        </div>
-                    @endif
+                <div><p class="eyebrow" style="color:var(--leaf)">Tentang kami</p><h2>{{ $page->about_title }}</h2><p>{{ $page->about_body }}</p></div>
+            </div>
+        </section>
+
+        @php
+            $visionText = $page->vision ?: \App\Models\LandingPage::defaults()['vision'];
+            $missionText = $page->mission ?: \App\Models\LandingPage::defaults()['mission'];
+        @endphp
+        <section class="section vision-mission-section" id="visi-misi">
+            <div class="container vision-mission-layout">
+                <div class="vision-intro"><p class="eyebrow">Arah pendidikan</p><h2>Berjalan dengan tujuan.</h2><p>Setiap proses belajar punya arah yang jelas: membantu anak bertumbuh dengan iman, ilmu, dan kepedulian.</p></div>
+                <div class="vision-cards">
+                    <article class="vision-card"><div><h3>Visi sekolah</h3><p>{{ $visionText }}</p></div><span aria-hidden="true" style="align-self:end;color:var(--leaf);font-size:28px">✳</span></article>
+                    <article class="mission-card"><h3>Misi kami</h3><ol>@foreach(preg_split('/\r\n|\r|\n/', $missionText) as $missionLine) @if(trim($missionLine))<li>{{ trim($missionLine) }}</li>@endif @endforeach</ol></article>
                 </div>
             </div>
         </section>
@@ -268,10 +290,10 @@
             </section>
         @endif
 
-        @if($champions->isNotEmpty())
-            <section class="section champions" id="juara">
-                <div class="container">
-                    <div class="section-head"><h2>Prestasi dan kebanggaan siswa.</h2><p>Apresiasi untuk ikhtiar, keberanian, dan karya terbaik anak-anak.</p></div>
+        <section class="section champions" id="juara">
+            <div class="container">
+                <div class="section-head"><h2>Prestasi siswa.</h2><p>Merayakan proses, karya, dan pencapaian siswa di bidang akademik maupun nonakademik.</p></div>
+                @if($champions->isNotEmpty())
                     <div class="champion-grid">
                         @foreach($champions->take(6) as $champion)
                             <article class="champion-card">
@@ -280,9 +302,11 @@
                             </article>
                         @endforeach
                     </div>
-                </div>
-            </section>
-        @endif
+                @else
+                    <div class="achievement-empty"><span class="achievement-mark" aria-hidden="true">✦</span><div><strong>Ruang untuk cerita prestasi berikutnya</strong><p>Prestasi dan karya siswa akan ditampilkan di sini. Tim sekolah dapat menambahkan pencapaian terbaru melalui dashboard.</p></div></div>
+                @endif
+            </div>
+        </section>
 
         @if($testimonials->isNotEmpty())
             <section class="section">

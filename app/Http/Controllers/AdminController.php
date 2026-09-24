@@ -511,6 +511,17 @@ class AdminController extends Controller
             ->with('import_errors', $result['errors']);
     }
 
+    public function downloadImportTemplate(Role $role, GoogleSheetAccountImportService $importer)
+    {
+        $filename = 'template-akun-'.$role->name.'.xlsx';
+
+        return response($importer->templateContents($role), 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
     public function linkParent(Request $request)
     {
         $data = $request->validate([

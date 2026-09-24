@@ -2,7 +2,7 @@
     $pages = [
         'accounts' => ['Daftar akun', 'Cari dan kelola role akun yang sudah terdaftar.'],
         'create' => ['Buat akun', 'Tambahkan akun guru, siswa, orang tua, atau staf sekolah.'],
-        'import' => ['Import akun', 'Tambahkan banyak akun sekaligus dari Google Sheet.'],
+        'import' => ['Import akun', 'Tambahkan banyak akun sekaligus dari file Excel, CSV, atau Google Sheet.'],
         'roles' => ['Role & akses', 'Atur kelompok role dan izin yang dimiliki setiap role.'],
         'parents' => ['Relasi orang tua', 'Hubungkan akun orang tua dengan siswa.'],
     ];
@@ -103,8 +103,9 @@
             <span class="eyebrow">Direkomendasikan</span><h2 style="margin-top:7px">Upload Excel / CSV</h2>
             <form class="stack" method="post" enctype="multipart/form-data" action="{{ route('admin.users.import-spreadsheet') }}">@csrf
                 <label>File akun<input name="spreadsheet" type="file" accept=".xlsx,.csv" required><span class="field-help">Format XLSX atau CSV, maksimal 5 MB dan 1.000 baris.</span></label>
-                <label>Role seluruh baris<select name="role_id" required>@foreach($roles as $role)<option value="{{ $role->id }}">{{ $role->label }}</option>@endforeach</select></label>
-                <div class="alert" style="margin:0"><strong>Ya, data dibuat otomatis.</strong><br>Jika role Siswa dipilih, sistem membuat akun login, profil siswa, NIS, penempatan kelas, dan riwayat kelas sekaligus. Header wajib: <code>nama</code>, <code>nis</code>, <code>kelas</code>. Username dan email boleh dikosongkan.</div>
+                <label>Role seluruh baris<select id="spreadsheet-role" name="role_id" required>@foreach($roles as $role)<option value="{{ $role->id }}" data-role="{{ $role->name }}">{{ $role->label }}</option>@endforeach</select></label>
+                <div class="alert" style="margin:0"><strong>Ya, data dibuat otomatis.</strong><br>Unduh template sesuai role yang dipilih. Header dasar: <code>nama</code>, <code>username</code>, <code>email</code>; siswa juga perlu <code>nis</code> dan <code>kelas</code>, guru perlu <code>nip</code>, orang tua perlu <code>phone</code>. Username dan email boleh dikosongkan. Password awal: <strong>{{ $importDefaultPassword }}</strong>; akun wajib menggantinya saat login pertama.</div>
+                <a id="account-template-download" class="btn" href="{{ $roles->isNotEmpty() ? route('admin.users.import-template', $roles->first()->id) : '#' }}">Unduh template Excel (.xlsx)</a>
                 <button class="btn primary" type="submit">Import file</button>
             </form>
         </section>
@@ -119,6 +120,18 @@
             @if(session('import_errors'))<details style="margin-top:16px"><summary>Baris yang dilewati</summary><ul>@foreach(session('import_errors') as $error)<li>{{ $error }}</li>@endforeach</ul></details>@endif
         </section>
         </div>
+        <script>
+            (() => {
+                const role = document.getElementById('spreadsheet-role');
+                const download = document.getElementById('account-template-download');
+                const baseUrl = @json(url('/admin/users/import-template'));
+                const updateTemplate = () => {
+                    if (role?.value && download) download.href = `${baseUrl}/${role.value}`;
+                };
+                role?.addEventListener('change', updateTemplate);
+                updateTemplate();
+            })();
+        </script>
     @elseif($section === 'roles')
         <div class="grid two">
             <section class="panel">

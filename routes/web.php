@@ -72,6 +72,7 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
         Route::post('/admin/users', [AdminController::class, 'storeUser'])->name('admin.users.store');
         Route::post('/admin/users/import-google-sheet', [AdminController::class, 'importGoogleSheet'])->name('admin.users.import-google-sheet');
         Route::post('/admin/users/import-spreadsheet', [AdminController::class, 'importSpreadsheet'])->name('admin.users.import-spreadsheet');
+        Route::get('/admin/users/import-template/{role}', [AdminController::class, 'downloadImportTemplate'])->whereNumber('role')->name('admin.users.import-template');
         Route::post('/admin/users/{user}/role', [AdminController::class, 'assignRole'])->name('admin.users.role');
         Route::post('/admin/roles', [AdminController::class, 'storeRole'])->name('admin.roles.store');
         Route::post('/admin/roles/{role}', [AdminController::class, 'updateRole'])->name('admin.roles.update');
