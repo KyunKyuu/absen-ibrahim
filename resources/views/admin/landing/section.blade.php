@@ -1,7 +1,7 @@
 @php
     $meta = [
         'hero' => ['Hero & tombol', 'Atur kesan pertama pengunjung: pesan utama, gambar sampul, dan tombol navigasi.'],
-        'profile' => ['Profil sekolah', 'Atur profil, video besar setelah hero, serta visi dan misi sekolah.'],
+        'profile' => ['Profil sekolah', 'Atur profil sekolah, video profil terintegrasi, serta visi dan misi.'],
         'admission' => ['Admisi & kontak', 'Kelola ajakan pendaftaran dan kanal yang dapat dihubungi calon orang tua.'],
     ][$section];
 @endphp
@@ -29,7 +29,7 @@
                     <hr style="border:0;border-top:1px solid var(--line);width:100%">
                     <h3>Video sekolah</h3>
                     <label>Judul video<input name="video_title" value="{{ old('video_title', $page->video_title) }}" maxlength="160" placeholder="Mengenal Sekolah Ibrahim"></label>
-                    <label>URL video<input name="video_url" type="url" value="{{ old('video_url', $page->video_url) }}" placeholder="https://www.youtube.com/watch?v=..."><span class="field-help">Bagian video tampil selebar layar tepat setelah hero. Jika dikosongkan, homepage memakai video contoh sementara.</span></label>
+                    <label>URL video<input name="video_url" type="url" value="{{ old('video_url', $page->video_url) }}" placeholder="https://www.youtube.com/watch?v=..."><span class="field-help">Video profil sekolah tampil rapi dan proporsional di homepage. Jika dikosongkan, homepage memakai video contoh sementara.</span></label>
                     <hr style="border:0;border-top:1px solid var(--line);width:100%">
                     <h3>Visi dan misi</h3>
                     <label>Visi sekolah<textarea name="vision" maxlength="1500">{{ old('vision', $page->vision ?: \App\Models\LandingPage::defaults()['vision']) }}</textarea></label>

@@ -9,7 +9,7 @@ use App\Models\SchoolSetting;
 
 class LandingPageController extends Controller
 {
-    public function __invoke()
+    private function getLandingData(): array
     {
         $items = LandingItem::query()
             ->published()
@@ -19,7 +19,7 @@ class LandingPageController extends Controller
             ->groupBy('kind');
         $page = LandingPage::current();
 
-        return view('landing', [
+        return [
             'page' => $page,
             'school' => SchoolSetting::active(),
             'programs' => $items->get('program', collect()),
@@ -31,6 +31,16 @@ class LandingPageController extends Controller
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get(),
-        ]);
+        ];
+    }
+
+    public function __invoke()
+    {
+        return view('landing', $this->getLandingData());
+    }
+
+    public function story()
+    {
+        return view('landing-story', $this->getLandingData());
     }
 }

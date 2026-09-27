@@ -31,4 +31,54 @@ class FinanceProposal extends Model
     {
         return $this->belongsTo(User::class, 'proposed_by_user_id');
     }
+
+    public function bills()
+    {
+        return $this->hasMany(StudentBill::class, 'finance_proposal_id');
+    }
+
+    public function getTotalCollectedAmountAttribute(): int
+    {
+        return (int) $this->bills()->sum('paid_amount');
+    }
+
+    public function getTotalBilledAmountAttribute(): int
+    {
+        return (int) $this->bills()->sum('amount');
+    }
+
+    public function getPaidBillsCountAttribute(): int
+    {
+        return $this->bills()->where('status', 'paid')->count();
+    }
+
+    public function getTotalBillsCountAttribute(): int
+    {
+        return $this->bills()->count();
+    }
+
+    public function proposerRoleLabel(): string
+    {
+        if (! $this->proposer) {
+            return '-';
+        }
+
+        if ($this->schoolClass && $this->schoolClass->homeroom_teacher_id === $this->proposer->id) {
+            return 'Wali Kelas';
+        }
+
+        if ($this->schoolClass && $this->schoolClass->class_leader_user_id === $this->proposer->id) {
+            return 'Ketua Kelas';
+        }
+
+        if ($this->proposer->hasRole('teacher')) {
+            return 'Wali Kelas';
+        }
+
+        if ($this->proposer->hasRole('student')) {
+            return 'Ketua Kelas';
+        }
+
+        return 'Pengusul';
+    }
 }

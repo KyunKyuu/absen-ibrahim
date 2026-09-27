@@ -20,19 +20,25 @@ class FinanceController extends Controller
     {
         $user = $request->user();
         $canManage = $user->canDo('finance.manage');
-        $isHomeroomTeacher = $user->canDo('finance.propose') && ! $canManage;
         $isPayer = $user->hasAnyRole(['student', 'parent']);
-        abort_unless($canManage || $isHomeroomTeacher || $isPayer, 403);
+        $isProposer = ! $canManage && (
+            $user->canDo('finance.propose')
+            || SchoolClass::query()->where('homeroom_teacher_id', $user->id)->orWhere('class_leader_user_id', $user->id)->exists()
+            || FinanceProposal::query()->where('proposed_by_user_id', $user->id)->exists()
+        );
+        abort_unless($canManage || $isProposer || $isPayer, 403);
         $allowedSections = $canManage
             ? ['bills', 'issue', 'fee-types', 'proposals', 'record-payment', 'confirmations', 'payments']
-            : ($isPayer ? ['bills', 'payments'] : ['bills', 'proposals']);
+            : ($isPayer
+                ? ($isProposer ? ['bills', 'proposals', 'payments'] : ['bills', 'payments'])
+                : ['bills', 'proposals']);
         abort_unless(in_array($section, $allowedSections, true), 403);
 
         $studentIds = $user->hasRole('student')
             ? collect([$user->id])
             : ($user->hasRole('parent') ? $user->children()->pluck('users.id') : collect());
 
-        $bills = StudentBill::query()->with(['student.studentProfile.schoolClass', 'schoolClass', 'payments'])
+        $bills = StudentBill::query()->with(['student.studentProfile.schoolClass', 'schoolClass', 'payments', 'proposal.proposer'])
             ->when($isPayer, fn ($query) => $query->whereIn('student_user_id', $studentIds))
             ->when(! $canManage && ! $isPayer, fn ($query) => $query->whereRaw('1 = 0'))
             ->latest()
@@ -49,30 +55,45 @@ class FinanceController extends Controller
             ->withQueryString();
 
         $proposals = FinanceProposal::query()
-            ->with(['schoolClass', 'proposer'])
-            ->when($isHomeroomTeacher, fn ($query) => $query->where('proposed_by_user_id', $user->id))
-            ->when(! $canManage && ! $isHomeroomTeacher, fn ($query) => $query->whereRaw('1 = 0'))
+            ->with([
+                'schoolClass',
+                'proposer',
+                'bills.student.studentProfile',
+                'bills.payments' => fn ($query) => $query->latest(),
+            ])
+            ->when(! $canManage && $isProposer, fn ($query) => $query->where('proposed_by_user_id', $user->id))
+            ->when(! $canManage && ! $isProposer, fn ($query) => $query->whereRaw('1 = 0'))
             ->latest()
             ->get();
+
+        $classes = $canManage
+            ? SchoolClass::query()->with('academicYear')->orderBy('name')->get()
+            : SchoolClass::query()->where(function ($query) use ($user) {
+                $query->where('homeroom_teacher_id', $user->id)
+                    ->orWhere('class_leader_user_id', $user->id);
+            })->with('academicYear')->orderBy('name')->get();
+
+        $availableBills = $canManage
+            ? StudentBill::query()->with('student')->where('status', '!=', 'paid')->orderByDesc('created_at')->get()
+            : ($isProposer
+                ? StudentBill::query()->with('student')->whereHas('proposal', fn ($q) => $q->where('proposed_by_user_id', $user->id))->where('status', '!=', 'paid')->orderByDesc('created_at')->get()
+                : collect());
 
         return view('finance.index', [
             'section' => $section,
             'user' => $user,
             'canManage' => $canManage,
             'isPayer' => $isPayer,
+            'isProposer' => $isProposer,
             'bills' => $bills,
             'payments' => $payments,
             'proposals' => $proposals,
             'feeTypes' => $canManage ? SchoolFeeType::query()->where('is_active', true)->orderBy('name')->get() : collect(),
-            'classes' => $canManage
-                ? SchoolClass::query()->with('academicYear')->orderBy('name')->get()
-                : SchoolClass::query()->where('homeroom_teacher_id', $user->id)->with('academicYear')->orderBy('name')->get(),
+            'classes' => $classes,
             'students' => $canManage
                 ? User::query()->where('role', 'student')->with('studentProfile.schoolClass')->orderBy('name')->get()
                 : collect(),
-            'availableBills' => $canManage
-                ? StudentBill::query()->with('student')->where('status', '!=', 'paid')->orderByDesc('created_at')->get()
-                : collect(),
+            'availableBills' => $availableBills,
         ]);
     }
 
@@ -127,6 +148,7 @@ class FinanceController extends Controller
 
     public function storeProposal(Request $request)
     {
+        $user = $request->user();
         $data = $request->validate([
             'school_class_id' => ['required', 'exists:school_classes,id'],
             'title' => ['required', 'string', 'max:150'],
@@ -136,13 +158,19 @@ class FinanceController extends Controller
             'due_date' => ['nullable', 'date'],
         ]);
 
-        $schoolClass = SchoolClass::query()
-            ->where('homeroom_teacher_id', $request->user()->id)
-            ->findOrFail($data['school_class_id']);
+        $classQuery = SchoolClass::query();
+        if (! $user->canDo('finance.manage')) {
+            $classQuery->where(function ($query) use ($user) {
+                $query->where('homeroom_teacher_id', $user->id)
+                    ->orWhere('class_leader_user_id', $user->id);
+            });
+        }
+
+        $schoolClass = $classQuery->findOrFail($data['school_class_id']);
 
         FinanceProposal::query()->create([
             ...$data,
-            'proposed_by_user_id' => $request->user()->id,
+            'proposed_by_user_id' => $user->id,
             'academic_year_id' => $schoolClass->academic_year_id,
         ]);
 
@@ -167,6 +195,9 @@ class FinanceController extends Controller
 
     public function storePayment(Request $request, StudentBill $bill, FinanceService $finance)
     {
+        $bill->loadMissing('proposal');
+        abort_unless($this->canCollectBill($request->user(), $bill), 403);
+
         $data = $request->validate([
             'amount' => ['required', 'integer', 'min:1', 'max:'.$bill->outstanding_amount],
             'paid_on' => ['required', 'date', 'before_or_equal:today'],
@@ -215,6 +246,9 @@ class FinanceController extends Controller
 
     public function approvePayment(Request $request, StudentPayment $payment, FinanceService $finance)
     {
+        $payment->loadMissing('bill.proposal');
+        abort_unless($this->canCollectBill($request->user(), $payment->bill), 403);
+
         $finance->verifyPayment($payment, $request->user());
 
         return back()->with('status', 'Pembayaran diverifikasi dan saldo tagihan diperbarui.');
@@ -222,6 +256,9 @@ class FinanceController extends Controller
 
     public function rejectPayment(Request $request, StudentPayment $payment, FinanceService $finance)
     {
+        $payment->loadMissing('bill.proposal');
+        abort_unless($this->canCollectBill($request->user(), $payment->bill), 403);
+
         $data = $request->validate(['review_notes' => ['required', 'string', 'max:1000']]);
         $finance->rejectPayment($payment, $request->user(), $data['review_notes']);
 
@@ -230,8 +267,15 @@ class FinanceController extends Controller
 
     public function paymentProof(Request $request, StudentPayment $payment)
     {
-        $payment->loadMissing('bill');
-        abort_unless($payment->proof_path && ($request->user()->canDo('finance.manage') || $this->canAccessBill($request->user(), $payment->bill)), 403);
+        $payment->loadMissing('bill.proposal');
+        abort_unless(
+            $payment->proof_path && (
+                $request->user()->canDo('finance.manage')
+                || $this->canAccessBill($request->user(), $payment->bill)
+                || $this->canCollectBill($request->user(), $payment->bill)
+            ),
+            403
+        );
         abort_unless(Storage::disk('local')->exists($payment->proof_path), 404);
 
         return Storage::disk('local')->response($payment->proof_path);
@@ -244,6 +288,21 @@ class FinanceController extends Controller
         $finance->promoteStudent($student, SchoolClass::query()->findOrFail($data['school_class_id']));
 
         return back()->with('status', 'Kelas siswa diperbarui. Tagihan lama yang belum lunas ditandai sebagai tunggakan.');
+    }
+
+    public function canCollectBill(User $user, StudentBill $bill): bool
+    {
+        if ($user->canDo('finance.manage')) {
+            return true;
+        }
+
+        if ($bill->finance_proposal_id) {
+            $bill->loadMissing('proposal');
+
+            return $bill->proposal && $bill->proposal->proposed_by_user_id === $user->id;
+        }
+
+        return false;
     }
 
     private function canAccessBill(User $user, StudentBill $bill): bool

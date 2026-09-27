@@ -23,7 +23,7 @@ class SubjectGradesTest extends TestCase
         $teacher = User::factory()->create(['name' => 'Guru Inggris', 'role' => 'teacher', 'is_active' => true, 'must_change_password' => false]);
         $other = User::factory()->create(['role' => 'teacher', 'is_active' => true, 'must_change_password' => false]);
         $year = AcademicYear::create(['name' => '2026/2027']);
-        $semester = Semester::create(['academic_year_id' => $year->id, 'name' => 'Ganjil', 'starts_on' => '2026-07-01', 'ends_on' => '2026-12-31']);
+        $semester = Semester::create(['academic_year_id' => $year->id, 'name' => 'Ganjil', 'starts_on' => '2026-07-01', 'ends_on' => '2026-12-31', 'is_active' => true]);
         $class = SchoolClass::create(['academic_year_id' => $year->id, 'name' => '11A']);
         $otherClass = SchoolClass::create(['academic_year_id' => $year->id, 'name' => '12A', 'homeroom_teacher_id' => $teacher->id]);
         $english = Subject::create(['name' => 'Bahasa Inggris']);

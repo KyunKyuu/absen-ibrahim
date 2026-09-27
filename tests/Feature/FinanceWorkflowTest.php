@@ -239,6 +239,165 @@ class FinanceWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_proposal_approved_by_tu_assigns_collection_to_proposing_homeroom_teacher(): void
+    {
+        [$teacher, $tu, $class, $students] = $this->financeFixture(2);
+        $student = $students->first();
+
+        // 1. Teacher proposes class fee
+        $this->actingAs($teacher)->post(route('finance.proposals.store'), [
+            'school_class_id' => $class->id,
+            'title' => 'Biaya Outing Class',
+            'billing_mode' => 'per_student',
+            'amount' => 50000,
+            'due_date' => '2026-11-01',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $proposal = FinanceProposal::query()->sole();
+        $this->assertSame($teacher->id, $proposal->proposed_by_user_id);
+
+        // 2. TU approves the proposal
+        $this->actingAs($tu)->post(route('finance.proposals.approve', $proposal))->assertSessionHasNoErrors();
+
+        // 3. Bills are created and linked to the proposal
+        $bill = StudentBill::query()->where('student_user_id', $student->id)->sole();
+        $this->assertSame($proposal->id, $bill->finance_proposal_id);
+        $this->assertSame($teacher->id, $bill->collector?->id);
+        $this->assertSame('Wali Kelas', $bill->collectorRoleLabel());
+
+        // 4. Student sees that money is collected by Wali Kelas
+        $this->actingAs($student)->get(route('finance.index'))
+            ->assertOk()
+            ->assertSee('Biaya Outing Class')
+            ->assertSee('Penyetoran ke:')
+            ->assertSee($teacher->name)
+            ->assertSee('Wali Kelas');
+
+        // 5. Random teacher cannot record payment for this proposal
+        $otherTeacher = User::query()->create(['name' => 'Guru Lain', 'email' => 'other2@test.test', 'role' => 'teacher', 'password' => 'password', 'is_active' => true]);
+        $this->actingAs($otherTeacher)->post(route('finance.payments.store', $bill), [
+            'amount' => 50000,
+            'paid_on' => '2026-09-26',
+            'payment_method' => 'cash',
+        ])->assertForbidden();
+
+        // 6. Proposer (Wali Kelas) collects money directly and records payment
+        $this->actingAs($teacher)->post(route('finance.payments.store', $bill), [
+            'amount' => 50000,
+            'paid_on' => '2026-09-26',
+            'payment_method' => 'cash',
+            'notes' => 'Diterima tunai oleh wali kelas',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $payment = StudentPayment::query()->sole();
+        $this->assertSame($teacher->id, $payment->received_by_user_id);
+        $this->assertSame('verified', $payment->status);
+        $this->assertSame('paid', $bill->fresh()->status);
+        $this->assertSame(50000, $bill->fresh()->paid_amount);
+
+        // 7. Teacher views collection tracking
+        $this->actingAs($teacher)->get(route('finance.proposals'))
+            ->assertOk()
+            ->assertSee('Biaya Outing Class')
+            ->assertSee('Terkumpul ke Pengusul');
+    }
+
+    public function test_ketua_kelas_can_propose_fee_and_collect_payments_upon_tu_approval(): void
+    {
+        [$teacher, $tu, $class, $students] = $this->financeFixture(2);
+        $leader = $students->first();
+        $classmate = $students->last();
+
+        // Assign first student as class leader
+        $class->update(['class_leader_user_id' => $leader->id]);
+
+        // Class leader proposes class fund
+        $this->actingAs($leader)->post(route('finance.proposals.store'), [
+            'school_class_id' => $class->id,
+            'title' => 'Uang Kas Kelas',
+            'billing_mode' => 'per_student',
+            'amount' => 10000,
+            'due_date' => '2026-10-31',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $proposal = FinanceProposal::query()->sole();
+        $this->assertSame($leader->id, $proposal->proposed_by_user_id);
+
+        // Regular classmate without class leader role cannot propose
+        $this->actingAs($classmate)->post(route('finance.proposals.store'), [
+            'school_class_id' => $class->id,
+            'title' => 'Iuran Liar',
+            'billing_mode' => 'per_student',
+            'amount' => 5000,
+        ])->assertForbidden();
+
+        // TU approves the proposal
+        $this->actingAs($tu)->post(route('finance.proposals.approve', $proposal))->assertSessionHasNoErrors();
+
+        $classmateBill = StudentBill::query()->where('student_user_id', $classmate->id)->sole();
+        $this->assertSame($leader->id, $classmateBill->collector?->id);
+        $this->assertSame('Ketua Kelas', $classmateBill->collectorRoleLabel());
+
+        // Classmate sees payment goes to Ketua Kelas
+        $this->actingAs($classmate)->get(route('finance.index'))
+            ->assertOk()
+            ->assertSee('Uang Kas Kelas')
+            ->assertSee($leader->name)
+            ->assertSee('Ketua Kelas');
+
+        // Ketua Kelas records the payment received from classmate
+        $this->actingAs($leader)->post(route('finance.payments.store', $classmateBill), [
+            'amount' => 10000,
+            'paid_on' => '2026-09-26',
+            'payment_method' => 'cash',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $payment = StudentPayment::query()->where('student_bill_id', $classmateBill->id)->sole();
+        $this->assertSame($leader->id, $payment->received_by_user_id);
+        $this->assertSame('verified', $payment->status);
+        $this->assertSame('paid', $classmateBill->fresh()->status);
+    }
+
+    public function test_proposer_can_verify_student_payment_confirmation(): void
+    {
+        Storage::fake('local');
+        [$teacher, $tu, $class, $students] = $this->financeFixture(2);
+        $student = $students->first();
+
+        // Homeroom teacher proposes fee and TU approves
+        $this->actingAs($teacher)->post(route('finance.proposals.store'), [
+            'school_class_id' => $class->id,
+            'title' => 'Buku Modul Kelas',
+            'billing_mode' => 'per_student',
+            'amount' => 45000,
+        ])->assertSessionHasNoErrors();
+
+        $proposal = FinanceProposal::query()->sole();
+        $this->actingAs($tu)->post(route('finance.proposals.approve', $proposal))->assertSessionHasNoErrors();
+
+        $bill = StudentBill::query()->where('student_user_id', $student->id)->sole();
+
+        // Student submits payment confirmation
+        $this->actingAs($student)->post(route('finance.payments.confirm', $bill), [
+            'amount' => 45000,
+            'paid_on' => '2026-09-26',
+            'payment_method' => 'transfer',
+            'proof' => UploadedFile::fake()->image('bukti.jpg'),
+        ])->assertSessionHasNoErrors();
+
+        $payment = StudentPayment::query()->sole();
+        $this->assertSame('pending', $payment->status);
+
+        // Proposer (teacher) verifies the confirmation
+        $this->actingAs($teacher)->post(route('finance.payments.approve', $payment))
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('verified', $payment->fresh()->status);
+        $this->assertSame($teacher->id, $payment->fresh()->reviewed_by_user_id);
+        $this->assertSame('paid', $bill->fresh()->status);
+    }
+
     private function financeFixture(int $studentCount = 1): array
     {
         $year = AcademicYear::query()->create(['name' => '2026/2027', 'is_active' => true]);

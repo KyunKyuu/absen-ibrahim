@@ -111,6 +111,8 @@ class LandingPageTest extends TestCase
             ->assertSee('Menjadi sekolah berkarakter.')
             ->assertSee('Mendidik dengan teladan.')
             ->assertSee('Alya juara sains')
+            ->assertSee('Buku Interaktif Sekolah')
+            ->assertSee('Mode Balik Buku (Loop)')
             ->assertDontSee('Juara draf');
     }
 
@@ -150,5 +152,31 @@ class LandingPageTest extends TestCase
 
         $this->actingAs($admin)->delete(route('admin.landing.tuition.destroy', $package))->assertRedirect();
         $this->assertDatabaseMissing('landing_tuition_packages', ['id' => $package->id]);
+    }
+
+    public function test_story_landing_page_renders_interactive_chapters(): void
+    {
+        \App\Models\LandingPage::query()->create([
+            ...\App\Models\LandingPage::defaults(),
+            'video_title' => 'Tur Petualangan Sekolah',
+            'video_url' => 'https://youtu.be/abcdefghijk',
+            'vision' => 'Generasi qurani berkarakter mulia.',
+        ]);
+
+        LandingItem::query()->create([
+            'kind' => 'program',
+            'title' => 'Tahfiz Cilik Gemilang',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        $this->get(route('landing.story'))
+            ->assertOk()
+            ->assertSee('Buku Petualangan Cerita')
+            ->assertSee('Tur Petualangan Sekolah')
+            ->assertSee('Tahfiz Cilik Gemilang')
+            ->assertSee('Generasi qurani berkarakter mulia.')
+            ->assertSee('Pilih Sahabat Petualangmu Hari Ini')
+            ->assertSee('Bintang');
     }
 }

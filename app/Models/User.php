@@ -98,6 +98,13 @@ class User extends Authenticatable
             return true;
         }
 
+        if ($permission === 'finance.propose' && (
+            SchoolClass::query()->where('homeroom_teacher_id', $this->id)->exists()
+            || SchoolClass::query()->where('class_leader_user_id', $this->id)->exists()
+        )) {
+            return true;
+        }
+
         return $this->roles()
             ->whereHas('permissions', fn ($query) => $query->where('name', $permission))
             ->exists()
@@ -105,6 +112,34 @@ class User extends Authenticatable
                 ->where('name', $this->role)
                 ->whereHas('permissions', fn ($query) => $query->where('name', $permission))
                 ->exists();
+    }
+
+    public function leadingClasses()
+    {
+        return $this->hasMany(SchoolClass::class, 'class_leader_user_id');
+    }
+
+    public function homeroomClasses()
+    {
+        return $this->hasMany(SchoolClass::class, 'homeroom_teacher_id');
+    }
+
+    public function isHomeroomTeacher(?SchoolClass $class = null): bool
+    {
+        if ($class) {
+            return $class->homeroom_teacher_id === $this->id;
+        }
+
+        return $this->homeroomClasses()->exists();
+    }
+
+    public function isClassLeader(?SchoolClass $class = null): bool
+    {
+        if ($class) {
+            return $class->class_leader_user_id === $this->id;
+        }
+
+        return $this->leadingClasses()->exists();
     }
 
     public function bills()

@@ -54,9 +54,12 @@
             </section>
             <section class="panel">
                 <h2>Daftar kelas</h2>
-                <div class="table-scroll"><table><thead><tr><th>Kelas</th><th>Tingkat</th><th>Wali kelas</th></tr></thead><tbody>
-                    @forelse($classes as $class)<tr><td><strong>{{ $class->name }}</strong></td><td>{{ $class->grade_level ?: '-' }}</td><td><form method="post" action="{{ route('admin.classes.homeroom', $class) }}">@csrf<select name="homeroom_teacher_id" onchange="this.form.submit()" aria-label="Wali kelas {{ $class->name }}"><option value="">Belum ada wali kelas</option>@foreach($teachers as $teacher)<option value="{{ $teacher->id }}" @selected($class->homeroom_teacher_id === $teacher->id)>{{ $teacher->name }}</option>@endforeach</select></form></td></tr>
-                    @empty<tr><td colspan="3" class="muted">Belum ada kelas.</td></tr>@endforelse
+                <div class="table-scroll"><table><thead><tr><th>Kelas</th><th>Tingkat</th><th>Wali kelas</th><th>Ketua kelas</th></tr></thead><tbody>
+                    @forelse($classes as $class)<tr><td><strong>{{ $class->name }}</strong></td><td>{{ $class->grade_level ?: '-' }}</td>
+                        <td><form method="post" action="{{ route('admin.classes.homeroom', $class) }}">@csrf<select name="homeroom_teacher_id" onchange="this.form.submit()" aria-label="Wali kelas {{ $class->name }}"><option value="">Belum ada wali kelas</option>@foreach($teachers as $teacher)<option value="{{ $teacher->id }}" @selected($class->homeroom_teacher_id === $teacher->id)>{{ $teacher->name }}</option>@endforeach</select></form></td>
+                        <td><form method="post" action="{{ route('admin.classes.leader', $class) }}">@csrf<select name="class_leader_user_id" onchange="this.form.submit()" aria-label="Ketua kelas {{ $class->name }}"><option value="">Belum ada ketua kelas</option>@foreach($students->filter(fn($s) => $s->studentProfile?->school_class_id === $class->id) as $student)<option value="{{ $student->id }}" @selected($class->class_leader_user_id === $student->id)>{{ $student->name }}</option>@endforeach</select></form></td>
+                    </tr>
+                    @empty<tr><td colspan="4" class="muted">Belum ada kelas.</td></tr>@endforelse
                 </tbody></table></div>
             </section>
         </div>

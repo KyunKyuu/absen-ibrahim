@@ -13,6 +13,7 @@ use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', LandingPageController::class)->name('landing');
+Route::get('/petualangan', [LandingPageController::class, 'story'])->name('landing.story');
 
 Route::view('/demo-dashboard', 'demo.dashboard')->name('demo.dashboard');
 
@@ -89,6 +90,7 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
         Route::post('/admin/academic-years', [AdminController::class, 'storeAcademicYear'])->name('admin.academic-years.store');
         Route::post('/admin/semesters', [AdminController::class, 'storeSemester'])->name('admin.semesters.store');
         Route::post('/admin/classes/{schoolClass}/homeroom', [AdminController::class, 'setHomeroomTeacher'])->name('admin.classes.homeroom');
+        Route::post('/admin/classes/{schoolClass}/leader', [AdminController::class, 'setClassLeader'])->name('admin.classes.leader');
         Route::post('/admin/iot-devices', [AdminController::class, 'storeDevice'])->name('admin.iot-devices.store');
         Route::post('/admin/subjects', [AdminController::class, 'storeSubject'])->name('admin.subjects.store');
         Route::post('/admin/teaching-assignments', [AdminController::class, 'storeTeachingAssignment'])->name('admin.teaching-assignments.store');
@@ -137,13 +139,14 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
         Route::post('/finance/proposals', [FinanceController::class, 'storeProposal'])->name('finance.proposals.store');
     });
 
+    Route::post('/finance/bills/{bill}/payments', [FinanceController::class, 'storePayment'])->name('finance.payments.store');
+    Route::post('/finance/payments/{payment}/approve', [FinanceController::class, 'approvePayment'])->name('finance.payments.approve');
+    Route::post('/finance/payments/{payment}/reject', [FinanceController::class, 'rejectPayment'])->name('finance.payments.reject');
+
     Route::middleware('permission:finance.manage')->group(function () {
         Route::post('/finance/fee-types', [FinanceController::class, 'storeFeeType'])->name('finance.fee-types.store');
         Route::post('/finance/bills/issue', [FinanceController::class, 'issueBills'])->name('finance.bills.issue');
         Route::post('/finance/proposals/{proposal}/approve', [FinanceController::class, 'approveProposal'])->name('finance.proposals.approve');
         Route::post('/finance/proposals/{proposal}/reject', [FinanceController::class, 'rejectProposal'])->name('finance.proposals.reject');
-        Route::post('/finance/bills/{bill}/payments', [FinanceController::class, 'storePayment'])->name('finance.payments.store');
-        Route::post('/finance/payments/{payment}/approve', [FinanceController::class, 'approvePayment'])->name('finance.payments.approve');
-        Route::post('/finance/payments/{payment}/reject', [FinanceController::class, 'rejectPayment'])->name('finance.payments.reject');
     });
 });

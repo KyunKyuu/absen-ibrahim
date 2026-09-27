@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SchoolClass extends Model
 {
-    protected $fillable = ['academic_year_id', 'name', 'grade_level', 'homeroom_teacher_id'];
+    protected $fillable = ['academic_year_id', 'name', 'grade_level', 'homeroom_teacher_id', 'class_leader_user_id'];
 
     public function students()
     {
@@ -16,6 +16,11 @@ class SchoolClass extends Model
     public function homeroomTeacher()
     {
         return $this->belongsTo(User::class, 'homeroom_teacher_id');
+    }
+
+    public function classLeader()
+    {
+        return $this->belongsTo(User::class, 'class_leader_user_id');
     }
 
     public function academicYear()

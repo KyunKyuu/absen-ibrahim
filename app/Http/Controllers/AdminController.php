@@ -547,8 +547,9 @@ class AdminController extends Controller
         return view('admin.settings', [
             'section' => $section,
             'setting' => SchoolSetting::active(),
-            'classes' => SchoolClass::query()->latest()->get(),
+            'classes' => SchoolClass::query()->with(['homeroomTeacher', 'classLeader'])->latest()->get(),
             'teachers' => User::query()->where('role', 'teacher')->where('is_active', true)->orderBy('name')->get(),
+            'students' => User::query()->where('role', 'student')->where('is_active', true)->with('studentProfile')->orderBy('name')->get(),
             'devices' => IotDevice::query()->latest()->get(),
             'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(),
             'semesters' => Semester::query()->with('academicYear')->orderByDesc('starts_on')->get(),
@@ -684,5 +685,20 @@ class AdminController extends Controller
         $schoolClass->update($data);
 
         return back()->with('status', 'Wali kelas berhasil diperbarui.');
+    }
+
+    public function setClassLeader(Request $request, SchoolClass $schoolClass)
+    {
+        $data = $request->validate([
+            'class_leader_user_id' => ['nullable', 'exists:users,id'],
+        ]);
+
+        if (! empty($data['class_leader_user_id'])) {
+            User::query()->where('role', 'student')->findOrFail($data['class_leader_user_id']);
+        }
+
+        $schoolClass->update($data);
+
+        return back()->with('status', 'Ketua kelas berhasil diperbarui.');
     }
 }

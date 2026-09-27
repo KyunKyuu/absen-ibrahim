@@ -3,20 +3,21 @@
         'bills' => ['Daftar tagihan', 'Pantau tagihan, tunggakan, dan catat pembayaran siswa.'],
         'issue' => ['Terbitkan tagihan', 'Buat tagihan untuk seluruh siswa dalam satu kelas.'],
         'fee-types' => ['Jenis tagihan', 'Kelola master tagihan dan nominal default.'],
-        'proposals' => ['Usulan biaya', 'Tinjau pengajuan biaya kegiatan dari wali kelas.'],
+        'proposals' => ['Usulan biaya', 'Tinjau pengajuan biaya kegiatan dari wali kelas / ketua kelas.'],
         'record-payment' => ['Catat pembayaran', 'Rekam pembayaran tunai atau transfer yang diterima tata usaha.'],
         'confirmations' => ['Verifikasi pembayaran', 'Periksa bukti pembayaran yang dikirim siswa atau orang tua.'],
         'payments' => ['Riwayat pembayaran', 'Lihat seluruh transaksi pembayaran dan status verifikasinya.'],
     ];
     $teacherPages = [
         'bills' => ['Ajukan biaya kelas', 'Kirim usulan kegiatan atau tagihan kelas kepada tata usaha.'],
-        'proposals' => ['Riwayat usulan', 'Pantau status pengajuan biaya kelas yang pernah dikirim.'],
+        'proposals' => ['Riwayat & Pengumpulan Usulan', 'Pantau status pengajuan biaya kelas dan kelola penyetoran dari siswa.'],
     ];
     $payerPages = [
         'bills' => [$user->hasRole('parent') ? 'Tagihan anak' : 'Tagihan saya', 'Lihat sisa tagihan dan kirim konfirmasi pembayaran.'],
         'payments' => ['Riwayat pembayaran', 'Pantau konfirmasi pembayaran dan hasil verifikasi tata usaha.'],
+        'proposals' => ['Kas & Usulan Kelas', 'Kirim usulan biaya kelas dan kelola penyetoran dana dari teman sekelas.'],
     ];
-    [$pageTitle, $pageDescription] = ($canManage ? $managerPages : ($isPayer ? $payerPages : $teacherPages))[$section];
+    [$pageTitle, $pageDescription] = ($canManage ? $managerPages : ($isPayer ? $payerPages : $teacherPages))[$section] ?? ['Keuangan', 'Kelola keuangan sekolah'];
 @endphp
 <x-layouts.app :title="$pageTitle">
     <div class="page-heading"><div class="page-heading-copy"><div class="breadcrumb"><span>Keuangan</span><span>/</span><span>{{ $pageTitle }}</span></div><h1>{{ $pageTitle }}</h1><p class="muted">{{ $pageDescription }}</p></div></div>
@@ -32,6 +33,9 @@
         @elseif($isPayer)
             <a class="{{ $section === 'bills' ? 'active' : '' }}" href="{{ route('finance.index') }}">{{ $user->hasRole('parent') ? 'Tagihan anak' : 'Tagihan saya' }}</a>
             <a class="{{ $section === 'payments' ? 'active' : '' }}" href="{{ route('finance.payment-history') }}">Riwayat pembayaran</a>
+            @if(!empty($isProposer))
+                <a class="{{ $section === 'proposals' ? 'active' : '' }}" href="{{ route('finance.proposals') }}">Kas & Usulan Kelas</a>
+            @endif
         @else
             <a class="{{ $section === 'bills' ? 'active' : '' }}" href="{{ route('finance.index') }}">Ajukan biaya</a>
             <a class="{{ $section === 'proposals' ? 'active' : '' }}" href="{{ route('finance.proposals') }}">Riwayat usulan</a>
@@ -42,25 +46,47 @@
         <div class="stack">
             @forelse($bills as $bill)
                 @php($hasPending = $bill->payments->contains('status', 'pending'))
+                @php($collectorUser = $bill->proposal?->proposer)
+                @php($collectorRole = $bill->collectorRoleLabel())
                 <section class="panel">
-                    <div class="topbar" style="margin-bottom:14px"><div><span class="eyebrow">{{ $bill->student?->name }}</span><h2 style="margin-top:6px">{{ $bill->title }}</h2><span class="muted">{{ $bill->billing_period ?: 'Tanpa periode' }} · jatuh tempo {{ $bill->due_date?->format('d M Y') ?? '-' }}</span></div><span class="badge {{ $bill->is_arrears ? 'priority' : '' }}">{{ $bill->status }}</span></div>
+                    <div class="topbar" style="margin-bottom:14px">
+                        <div>
+                            <span class="eyebrow">{{ $bill->student?->name }}</span>
+                            <h2 style="margin-top:6px">{{ $bill->title }}</h2>
+                            <span class="muted">{{ $bill->billing_period ?: 'Tanpa periode' }} · jatuh tempo {{ $bill->due_date?->format('d M Y') ?? '-' }}</span>
+                            <div style="margin-top:6px;font-size:13px;display:flex;align-items:center;gap:6px">
+                                <span class="muted">Penyetoran ke:</span>
+                                @if($collectorUser)
+                                    <strong style="color:var(--primary)">{{ $collectorUser->name }}</strong>
+                                    <span class="badge" style="font-size:11px;padding:2px 8px">{{ $collectorRole }}</span>
+                                @else
+                                    <strong>Tata Usaha (TU)</strong>
+                                @endif
+                            </div>
+                        </div>
+                        <span class="badge {{ $bill->is_arrears ? 'priority' : '' }}">{{ $bill->status }}</span>
+                    </div>
                     <div class="grid stats" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:16px"><div class="metric"><span class="muted">Total</span><strong style="font-size:20px">Rp{{ number_format($bill->amount, 0, ',', '.') }}</strong></div><div class="metric"><span class="muted">Terbayar</span><strong style="font-size:20px">Rp{{ number_format($bill->paid_amount, 0, ',', '.') }}</strong></div><div class="metric"><span class="muted">Sisa</span><strong style="font-size:20px">Rp{{ number_format($bill->outstanding_amount, 0, ',', '.') }}</strong></div></div>
                     @if($bill->status !== 'paid' && ! $hasPending)
-                        <details class="cms-item"><summary><span><strong>Konfirmasi pembayaran</strong><small>Isi data setelah melakukan pembayaran</small></span><span></span><span>⌄</span></summary><div class="cms-edit">
+                        <details class="cms-item"><summary><span><strong>Konfirmasi pembayaran</strong><small>Isi data setelah melakukan pembayaran ke {{ $collectorUser ? $collectorUser->name : 'Tata Usaha' }}</small></span><span></span><span>⌄</span></summary><div class="cms-edit">
                             <form class="stack" method="post" enctype="multipart/form-data" action="{{ route('finance.payments.confirm', $bill) }}">@csrf
-                                <div class="form-grid"><label>Nama siswa<input value="{{ $bill->student?->name }}" disabled></label><label>Bayar untuk<input value="{{ $bill->title }}" disabled></label><label>Nominal<input name="amount" type="number" min="1" max="{{ $bill->outstanding_amount }}" value="{{ $bill->outstanding_amount }}" required></label><label>Tanggal pembayaran<input name="paid_on" type="date" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}" required></label><label>Metode<select name="payment_method" required><option value="transfer">Transfer</option><option value="cash">Tunai</option><option value="other">Lainnya</option></select></label><label>Nomor referensi<input name="reference" placeholder="Opsional"></label><label class="wide">Foto bukti pembayaran<input name="proof" type="file" accept="image/jpeg,image/png,image/webp"><span class="field-help">Opsional, JPG/PNG/WebP maksimal 5 MB.</span></label><label class="wide">Catatan<textarea name="notes" placeholder="Opsional"></textarea></label></div>
+                                <div class="form-grid"><label>Nama siswa<input value="{{ $bill->student?->name }}" disabled></label><label>Bayar untuk<input value="{{ $bill->title }}" disabled></label><label>Nominal<input name="amount" type="number" min="1" max="{{ $bill->outstanding_amount }}" value="{{ $bill->outstanding_amount }}" required></label><label>Tanggal pembayaran<input name="paid_on" type="date" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}" required></label><label>Metode<select name="payment_method" required><option value="cash">Tunai (Langsung ke {{ $collectorUser ? $collectorUser->name : 'TU' }})</option><option value="transfer">Transfer</option><option value="other">Lainnya</option></select></label><label>Nomor referensi<input name="reference" placeholder="Opsional"></label><label class="wide">Foto bukti pembayaran<input name="proof" type="file" accept="image/jpeg,image/png,image/webp"><span class="field-help">Opsional, JPG/PNG/WebP maksimal 5 MB.</span></label><label class="wide">Catatan<textarea name="notes" placeholder="Opsional"></textarea></label></div>
                                 <button class="btn primary" type="submit">Kirim untuk diverifikasi</button>
                             </form></div>
                         </details>
-                    @elseif($hasPending)<div class="alert" style="margin:0">Pembayaran sedang menunggu verifikasi tata usaha.</div>@endif
+                    @elseif($hasPending)
+                        <div class="alert" style="margin:0">
+                            Pembayaran sedang menunggu verifikasi {{ $collectorUser ? 'dari ' . $collectorUser->name . ' (' . $collectorRole . ')' : 'tata usaha' }}.
+                        </div>
+                    @endif
                 </section>
             @empty<div class="empty-state">Belum ada tagihan untuk akun ini.</div>@endforelse
         </div>
     @elseif(! $canManage && ! $isPayer && $section === 'bills')
         <section class="panel" style="max-width:780px">
             <form class="stack" method="post" action="{{ route('finance.proposals.store') }}">@csrf
-                <label>Kelas wali<select name="school_class_id" required>@foreach($classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></label>
-                <label>Nama kegiatan / tagihan<input name="title" value="{{ old('title') }}" placeholder="Biaya camping" required></label>
+                <label>Kelas<select name="school_class_id" required>@foreach($classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></label>
+                <label>Nama kegiatan / tagihan<input name="title" value="{{ old('title') }}" placeholder="Biaya camping / kas kelas" required></label>
                 <label>Keterangan<textarea name="description">{{ old('description') }}</textarea></label>
                 <div class="form-grid">
                     <label>Skema<select name="billing_mode" required><option value="per_student">Nominal per siswa</option><option value="collective">Target total kolektif</option></select></label>
@@ -68,19 +94,152 @@
                     <label>Jatuh tempo<input name="due_date" type="date" value="{{ old('due_date') }}"></label>
                 </div>
                 <button class="btn primary" type="submit" @disabled($classes->isEmpty())>Ajukan ke tata usaha</button>
-                @if($classes->isEmpty())<div class="alert errors" style="margin:0">Admin belum menetapkan Anda sebagai wali kelas.</div>@endif
+                @if($classes->isEmpty())<div class="alert errors" style="margin:0">Admin belum menetapkan kelas untuk akun Anda.</div>@endif
             </form>
         </section>
-    @elseif(! $canManage && ! $isPayer && $section === 'proposals')
-        <section class="panel"><div class="table-scroll"><table><thead><tr><th>Usulan</th><th>Kelas</th><th>Nominal</th><th>Status</th><th>Catatan</th></tr></thead><tbody>
-            @forelse($proposals as $proposal)<tr><td><strong>{{ $proposal->title }}</strong></td><td>{{ $proposal->schoolClass?->name }}</td><td>Rp {{ number_format($proposal->amount, 0, ',', '.') }}</td><td><span class="badge">{{ $proposal->status }}</span></td><td>{{ $proposal->review_notes ?: '-' }}</td></tr>@empty<tr><td colspan="5" class="muted">Belum ada usulan.</td></tr>@endforelse
-        </tbody></table></div></section>
+    @elseif(! $canManage && $section === 'proposals')
+        <div class="stack">
+            @if($classes->isNotEmpty())
+                <details class="cms-item" style="max-width:780px">
+                    <summary><span><strong>+ Ajukan Usulan Biaya Baru</strong><small>Kirim pengajuan biaya kegiatan atau kas kelas ke tata usaha</small></span><span></span><span>⌄</span></summary>
+                    <div class="cms-edit">
+                        <form class="stack" method="post" action="{{ route('finance.proposals.store') }}">@csrf
+                            <label>Kelas<select name="school_class_id" required>@foreach($classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></label>
+                            <label>Nama kegiatan / tagihan<input name="title" value="{{ old('title') }}" placeholder="Biaya kas kelas / kegiatan" required></label>
+                            <label>Keterangan<textarea name="description">{{ old('description') }}</textarea></label>
+                            <div class="form-grid">
+                                <label>Skema<select name="billing_mode" required><option value="per_student">Nominal per siswa</option><option value="collective">Target total kolektif</option></select></label>
+                                <label>Nominal<input name="amount" type="number" min="1" value="{{ old('amount') }}" required></label>
+                                <label>Jatuh tempo<input name="due_date" type="date" value="{{ old('due_date') }}"></label>
+                            </div>
+                            <button class="btn primary" type="submit">Ajukan ke tata usaha</button>
+                        </form>
+                    </div>
+                </details>
+            @endif
+
+            @forelse($proposals as $proposal)
+                <section class="panel">
+                    <div class="topbar" style="margin-bottom:14px">
+                        <div>
+                            <span class="eyebrow">{{ $proposal->schoolClass?->name }} · {{ $proposal->billing_mode === 'collective' ? 'Kolektif' : 'Per Siswa' }}</span>
+                            <h2 style="margin-top:6px">{{ $proposal->title }}</h2>
+                            <span class="muted">Target: Rp{{ number_format($proposal->amount, 0, ',', '.') }} · Jatuh tempo: {{ $proposal->due_date?->format('d M Y') ?? '-' }}</span>
+                        </div>
+                        <div>
+                            @if($proposal->status === 'pending')
+                                <span class="badge">Menunggu Persetujuan TU</span>
+                            @elseif($proposal->status === 'rejected')
+                                <span class="badge priority">Ditolak TU</span>
+                            @else
+                                <span class="badge" style="background:#e6f4ea;color:#137333">Disetujui TU (Pengumpulan Aktif)</span>
+                            @endif
+                        </div>
+                    </div>
+
+                    @if($proposal->description)
+                        <p class="muted" style="margin-bottom:14px;font-size:14px">{{ $proposal->description }}</p>
+                    @endif
+
+                    @if($proposal->status === 'rejected' && $proposal->review_notes)
+                        <div class="alert errors" style="margin-bottom:14px"><strong>Catatan penolakan TU:</strong> {{ $proposal->review_notes }}</div>
+                    @endif
+
+                    @if($proposal->status === 'published')
+                        @php($collected = $proposal->total_collected_amount)
+                        @php($target = $proposal->total_billed_amount)
+                        @php($percent = $target > 0 ? min(100, round(($collected / $target) * 100)) : 0)
+                        <div class="grid stats" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px">
+                            <div class="metric"><span class="muted">Target Total</span><strong style="font-size:18px">Rp{{ number_format($target, 0, ',', '.') }}</strong></div>
+                            <div class="metric"><span class="muted">Terkumpul ke Pengusul</span><strong style="font-size:18px;color:#137333">Rp{{ number_format($collected, 0, ',', '.') }}</strong></div>
+                            <div class="metric"><span class="muted">Sisa Belum Setor</span><strong style="font-size:18px;color:#b06000">Rp{{ number_format(max(0, $target - $collected), 0, ',', '.') }}</strong></div>
+                            <div class="metric"><span class="muted">Progres Lunas</span><strong style="font-size:18px">{{ $proposal->paid_bills_count }}/{{ $proposal->total_bills_count }} siswa ({{ $percent }}%)</strong></div>
+                        </div>
+
+                        <div class="alert" style="margin-bottom:14px;background:#e8f0fe;border-color:#d2e3fc;color:#174ea6">
+                            ℹ️ Penyetoran uang dilakukan langsung ke Anda ({{ $proposal->proposerRoleLabel() }}). Catat pembayaran siswa yang menyerahkan uang secara tunai atau transfer di bawah ini.
+                        </div>
+
+                        <div class="table-scroll"><table>
+                            <thead><tr><th>Siswa</th><th>NIS</th><th>Tagihan</th><th>Terbayar</th><th>Sisa</th><th>Status</th><th>Penyetoran & Verifikasi</th></tr></thead>
+                            <tbody>
+                                @forelse($proposal->bills as $b)
+                                    @php($pendingP = $b->payments->firstWhere('status', 'pending'))
+                                    <tr>
+                                        <td><strong>{{ $b->student?->name }}</strong></td>
+                                        <td>{{ $b->student?->studentProfile?->nis ?: '-' }}</td>
+                                        <td>Rp{{ number_format($b->amount, 0, ',', '.') }}</td>
+                                        <td>Rp{{ number_format($b->paid_amount, 0, ',', '.') }}</td>
+                                        <td>Rp{{ number_format($b->outstanding_amount, 0, ',', '.') }}</td>
+                                        <td>
+                                            @if($b->status === 'paid')
+                                                <span class="badge" style="background:#e6f4ea;color:#137333">Lunas</span>
+                                            @elseif($pendingP)
+                                                <span class="badge" style="background:#fef7e0;color:#b06000">Menunggu Verifikasi</span>
+                                            @else
+                                                <span class="badge {{ $b->is_arrears ? 'priority' : '' }}">{{ $b->status }}</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($pendingP)
+                                                <div class="actions">
+                                                    @if($pendingP->proof_path)
+                                                        <a class="btn small" target="_blank" href="{{ route('finance.payments.proof', $pendingP) }}">Bukti</a>
+                                                    @endif
+                                                    <form method="post" action="{{ route('finance.payments.approve', $pendingP) }}">@csrf
+                                                        <button class="btn primary small" type="submit">Verifikasi (Rp{{ number_format($pendingP->amount, 0, ',', '.') }})</button>
+                                                    </form>
+                                                    <form method="post" action="{{ route('finance.payments.reject', $pendingP) }}">@csrf
+                                                        <input name="review_notes" placeholder="Alasan" required style="width:90px;font-size:11px;padding:4px">
+                                                        <button class="btn warn small" type="submit">Tolak</button>
+                                                    </form>
+                                                </div>
+                                            @elseif($b->status !== 'paid')
+                                                <details class="cms-item" style="border:none;margin:0;padding:0">
+                                                    <summary style="padding:4px 8px;font-size:12px;cursor:pointer"><span class="btn small">Catat Penyetoran ▾</span></summary>
+                                                    <div style="margin-top:8px;padding:12px;background:var(--bg-subtle, #f8f9fa);border-radius:8px;border:1px solid var(--border)">
+                                                        <form class="stack" method="post" action="{{ route('finance.payments.store', $b) }}">@csrf
+                                                            <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+                                                                <label>Nominal (Rp)<input name="amount" type="number" min="1" max="{{ $b->outstanding_amount }}" value="{{ $b->outstanding_amount }}" required></label>
+                                                                <label>Tanggal<input name="paid_on" type="date" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}" required></label>
+                                                                <label>Metode<select name="payment_method" required><option value="cash">Tunai (Diterima Langsung)</option><option value="transfer">Transfer ke Saya</option><option value="other">Lainnya</option></select></label>
+                                                                <label>Catatan<input name="notes" placeholder="Catatan opsional"></label>
+                                                            </div>
+                                                            <button class="btn primary small" type="submit">Simpan Pembayaran {{ $b->student?->name }}</button>
+                                                        </form>
+                                                    </div>
+                                                </details>
+                                            @else
+                                                <span class="muted" style="font-size:12px">Lunas</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="7" class="muted">Belum ada tagihan siswa untuk usulan ini.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table></div>
+                    @endif
+                </section>
+            @empty
+                <div class="empty-state">Belum ada riwayat usulan biaya.</div>
+            @endforelse
+        </div>
     @elseif($section === 'bills')
         <section class="panel">
             <div class="table-scroll"><table>
                 <thead><tr><th>Siswa</th><th>Tagihan</th><th>Kelas saat terbit</th><th>Total</th><th>Terbayar</th><th>Sisa</th><th>Status</th><th>Input pembayaran</th></tr></thead>
                 <tbody>@forelse($bills as $bill)<tr>
-                    <td><strong>{{ $bill->student?->name }}</strong></td><td>{{ $bill->title }}<br><span class="muted">{{ $bill->billing_period }}</span></td><td>{{ $bill->schoolClass?->name ?? '-' }}</td>
+                    <td><strong>{{ $bill->student?->name }}</strong></td>
+                    <td>
+                        {{ $bill->title }}<br><span class="muted">{{ $bill->billing_period ?: '-' }}</span>
+                        @if($bill->proposal && $bill->proposal->proposer)
+                            <br><span style="font-size:12px;color:var(--primary)">Penyetoran: {{ $bill->proposal->proposer->name }} ({{ $bill->collectorRoleLabel() }})</span>
+                        @else
+                            <br><span style="font-size:12px;color:var(--muted)">Penyetoran: Tata Usaha (TU)</span>
+                        @endif
+                    </td>
+                    <td>{{ $bill->schoolClass?->name ?? '-' }}</td>
                     <td>Rp {{ number_format($bill->amount, 0, ',', '.') }}</td><td>Rp {{ number_format($bill->paid_amount, 0, ',', '.') }}</td><td>Rp {{ number_format($bill->outstanding_amount, 0, ',', '.') }}</td>
                     <td><span class="badge {{ $bill->is_arrears ? 'priority' : '' }}">{{ $bill->is_arrears && $bill->status !== 'paid' ? 'tunggakan / ' : '' }}{{ $bill->status }}</span></td>
                     <td>@if($bill->status !== 'paid')<a class="btn small" href="{{ route('finance.record-payment', ['bill' => $bill->id]) }}">Catat pembayaran</a>@else<span class="muted">Lunas</span>@endif</td>
@@ -113,9 +272,29 @@
         </div>
     @elseif($section === 'proposals')
         <section class="panel"><div class="table-scroll"><table><thead><tr><th>Usulan</th><th>Kelas</th><th>Skema</th><th>Nominal</th><th>Status</th><th>Tindakan</th></tr></thead><tbody>
-            @forelse($proposals as $proposal)<tr><td><strong>{{ $proposal->title }}</strong><br><span class="muted">{{ $proposal->proposer?->name }}</span></td><td>{{ $proposal->schoolClass?->name }}</td><td>{{ $proposal->billing_mode === 'collective' ? 'Target kolektif' : 'Per siswa' }}</td><td>Rp {{ number_format($proposal->amount, 0, ',', '.') }}</td><td><span class="badge">{{ $proposal->status }}</span></td><td>
-                @if($proposal->status === 'pending')<div class="actions"><form method="post" action="{{ route('finance.proposals.approve', $proposal) }}">@csrf<button class="btn primary small" type="submit">Setujui</button></form><form method="post" action="{{ route('finance.proposals.reject', $proposal) }}">@csrf<input name="review_notes" placeholder="Alasan penolakan" required><button class="btn warn small" type="submit">Tolak</button></form></div>@else<span class="muted">{{ $proposal->review_notes ?: 'Sudah ditinjau' }}</span>@endif
-            </td></tr>@empty<tr><td colspan="6" class="muted">Belum ada usulan biaya.</td></tr>@endforelse
+            @forelse($proposals as $proposal)<tr>
+                <td>
+                    <strong>{{ $proposal->title }}</strong><br>
+                    <span class="muted">Pengusul: {{ $proposal->proposer?->name }} ({{ $proposal->proposerRoleLabel() }})</span>
+                    @if($proposal->status === 'published')
+                        <br><span style="font-size:12px;color:var(--primary)">Terkumpul: Rp {{ number_format($proposal->total_collected_amount, 0, ',', '.') }} / Rp {{ number_format($proposal->total_billed_amount, 0, ',', '.') }} ({{ $proposal->paid_bills_count }}/{{ $proposal->total_bills_count }} lunas)</span>
+                    @endif
+                </td>
+                <td>{{ $proposal->schoolClass?->name }}</td>
+                <td>{{ $proposal->billing_mode === 'collective' ? 'Target kolektif' : 'Per siswa' }}</td>
+                <td>Rp {{ number_format($proposal->amount, 0, ',', '.') }}</td>
+                <td><span class="badge">{{ $proposal->status }}</span></td>
+                <td>
+                    @if($proposal->status === 'pending')
+                        <div class="actions">
+                            <form method="post" action="{{ route('finance.proposals.approve', $proposal) }}">@csrf<button class="btn primary small" type="submit">Setujui</button></form>
+                            <form method="post" action="{{ route('finance.proposals.reject', $proposal) }}">@csrf<input name="review_notes" placeholder="Alasan penolakan" required><button class="btn warn small" type="submit">Tolak</button></form>
+                        </div>
+                    @else
+                        <span class="muted">{{ $proposal->review_notes ?: 'Disetujui' }}</span>
+                    @endif
+                </td>
+            </tr>@empty<tr><td colspan="6" class="muted">Belum ada usulan biaya.</td></tr>@endforelse
         </tbody></table></div></section>
     @elseif($section === 'record-payment')
         @php($selectedBill = $availableBills->firstWhere('id', (int) request('bill')) ?? $availableBills->first())
@@ -139,7 +318,13 @@
     @elseif($section === 'confirmations')
         <section class="panel"><div class="table-scroll"><table><thead><tr><th>Siswa / tagihan</th><th>Pengirim</th><th>Pembayaran</th><th>Bukti</th><th>Tindakan</th></tr></thead><tbody>
             @forelse($payments as $payment)<tr>
-                <td><strong>{{ $payment->bill?->student?->name }}</strong><br><span class="muted">{{ $payment->bill?->title }}</span></td><td>{{ $payment->submittedBy?->name }}<br><span class="muted">{{ $payment->created_at?->format('d M Y H:i') }}</span></td>
+                <td>
+                    <strong>{{ $payment->bill?->student?->name }}</strong><br><span class="muted">{{ $payment->bill?->title }}</span>
+                    @if($payment->bill?->proposal?->proposer)
+                        <br><span style="font-size:12px;color:var(--primary)">Penyetoran: {{ $payment->bill->proposal->proposer->name }} ({{ $payment->bill->collectorRoleLabel() }})</span>
+                    @endif
+                </td>
+                <td>{{ $payment->submittedBy?->name }}<br><span class="muted">{{ $payment->created_at?->format('d M Y H:i') }}</span></td>
                 <td><strong>Rp{{ number_format($payment->amount, 0, ',', '.') }}</strong><br><span class="muted">{{ ucfirst($payment->payment_method) }} · {{ $payment->paid_on?->format('d M Y') }}</span></td>
                 <td>@if($payment->proof_path)<a class="btn small" target="_blank" href="{{ route('finance.payments.proof', $payment) }}">Lihat bukti</a>@else<span class="muted">Tidak ada</span>@endif</td>
                 <td><div class="actions"><form method="post" action="{{ route('finance.payments.approve', $payment) }}">@csrf<button class="btn primary small" type="submit">Verifikasi</button></form><form method="post" action="{{ route('finance.payments.reject', $payment) }}">@csrf<input name="review_notes" placeholder="Alasan penolakan" required><button class="btn warn small" type="submit">Tolak</button></form></div></td>
