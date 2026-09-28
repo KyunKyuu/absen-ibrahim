@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\GradeAssessment;
 use App\Models\Semester;
 use App\Models\StudentGrade;
+use App\Models\SchoolClass;
 use App\Models\TeachingAssignment;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -21,8 +22,13 @@ class GradeController extends Controller
 
     private function canEdit(User $user, GradeAssessment $assessment): bool
     {
+        if ($user->canDo('school.manage')) {
+            return true;
+        }
+
         return $assessment->teacher_user_id === $user->id && $this->assignments($user)
-            ->where('school_class_id', $assessment->school_class_id)->where('subject_id', $assessment->subject_id)->exists();
+            ->where('school_class_id', $assessment->school_class_id)->where('subject_id', $assessment->subject_id)->exists()
+            || SchoolClass::query()->whereKey($assessment->school_class_id)->where('homeroom_teacher_id', $user->id)->exists();
     }
 
     public function index(Request $request, string $section = 'list')
@@ -115,7 +121,12 @@ class GradeController extends Controller
         DB::transaction(function () use ($rows, $assessment, $request) {
             $assignment = $this->assignments($request->user())->where('school_class_id', $assessment->school_class_id)
                 ->where('subject_id', $assessment->subject_id)->lockForUpdate()->first();
-            abort_unless($assignment, 403);
+            abort_unless(
+                $request->user()->canDo('school.manage')
+                || $assignment
+                || SchoolClass::query()->whereKey($assessment->school_class_id)->where('homeroom_teacher_id', $request->user()->id)->exists(),
+                403
+            );
             $ids = $rows->pluck('student_user_id');
             $students = User::query()->whereIn('id', $ids)->where('role', 'student')->where('is_active', true)
                 ->whereHas('studentProfile', fn ($profile) => $profile->where('school_class_id', $assessment->school_class_id))->get();

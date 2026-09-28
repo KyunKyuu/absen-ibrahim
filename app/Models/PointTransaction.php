@@ -15,4 +15,14 @@ class PointTransaction extends Model
         'source_id',
         'description',
     ];
+
+    public function student()
+    {
+        return $this->belongsTo(User::class, 'student_user_id');
+    }
+
+    public function actor()
+    {
+        return $this->belongsTo(User::class, 'actor_user_id');
+    }
 }

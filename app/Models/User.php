@@ -59,6 +59,23 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function parents()
+    {
+        return $this->belongsToMany(User::class, 'parent_student', 'student_user_id', 'parent_user_id')
+            ->withPivot('relationship')
+            ->withTimestamps();
+    }
+
+    public function attendancePermissions()
+    {
+        return $this->hasMany(AttendancePermission::class, 'student_user_id');
+    }
+
+    public function submittedPermissions()
+    {
+        return $this->hasMany(AttendancePermission::class, 'submitted_by_user_id');
+    }
+
     public function pointSummary()
     {
         return $this->hasOne(StudentPointSummary::class, 'student_user_id');

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Models\AttendancePermission;
+use App\Models\GradeAssessment;
+use App\Models\PointTransaction;
 use App\Models\SchoolClass;
 use App\Models\SchoolSetting;
 use App\Models\Semester;
@@ -10,6 +13,7 @@ use App\Models\StudentClassHistory;
 use App\Models\StudentPointSummary;
 use App\Models\User;
 use App\Services\StudentProgressService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -24,6 +28,23 @@ class DashboardController extends Controller
         $podium = collect();
         $podiumClasses = collect();
         $podiumClassId = null;
+        $attendanceBreakdown = [
+            'ontime' => 0,
+            'late' => 0,
+            'excused' => 0,
+            'absent' => 0,
+            'unrecorded' => 0,
+            'total' => 0,
+        ];
+        $levelDistribution = [
+            'teladan' => 0,
+            'berkembang' => 0,
+            'pemula' => 0,
+            'perhatian' => 0,
+        ];
+        $weeklyAttendanceTrend = collect();
+        $recentActivityFeed = collect();
+        $attendanceSetting = SchoolSetting::active();
 
         if ($user->isRole('student')) {
             $user->loadMissing('pointSummary');
@@ -95,6 +116,61 @@ class DashboardController extends Controller
                     ->orderByDesc('general_points')->orderBy('student_user_id')
                     ->limit(10)->get();
             }
+
+            $todayAttendances = Attendance::query()->whereDate('attendance_date', today())
+                ->when(! $user->canDo('school.manage'), fn ($query) => $query->whereIn('student_user_id', $students->pluck('id')))
+                ->get();
+
+            $ontimeCount = $todayAttendances->where('status', 'present')->where('is_ontime', true)->count();
+            $lateCount = $todayAttendances->filter(fn ($a) => $a->status === 'late' || ($a->status === 'present' && ! $a->is_ontime))->count();
+            $excusedCount = $todayAttendances->where('status', 'excused')->count();
+            $absentCount = $todayAttendances->where('status', 'absent')->count();
+            $totalStudentsCount = $students->count();
+            $unrecordedCount = max(0, $totalStudentsCount - $todayAttendances->count());
+
+            $attendanceBreakdown = [
+                'ontime' => $ontimeCount,
+                'late' => $lateCount,
+                'excused' => $excusedCount,
+                'absent' => $absentCount,
+                'unrecorded' => $unrecordedCount,
+                'total' => $totalStudentsCount,
+            ];
+
+            foreach ($students as $student) {
+                $pts = (int) ($student->pointSummary?->general_points ?? 0);
+                if ($pts >= 100) {
+                    $levelDistribution['teladan']++;
+                } elseif ($pts >= 50) {
+                    $levelDistribution['berkembang']++;
+                } elseif ($pts >= 0) {
+                    $levelDistribution['pemula']++;
+                } else {
+                    $levelDistribution['perhatian']++;
+                }
+            }
+
+            $weeklyAttendanceTrend = Attendance::query()
+                ->when(! $user->canDo('school.manage'), fn ($query) => $query->whereIn('student_user_id', $students->pluck('id')))
+                ->selectRaw('DATE(attendance_date) as att_date, count(*) as total, sum(case when is_ontime = 1 then 1 else 0 end) as ontime_count')
+                ->groupBy('att_date')
+                ->orderByDesc('att_date')
+                ->limit(6)
+                ->get()
+                ->sortBy('att_date')
+                ->values()
+                ->map(fn ($row) => [
+                    'date' => Carbon::parse($row->att_date)->translatedFormat('d M'),
+                    'total' => (int) $row->total,
+                    'ontime' => (int) $row->ontime_count,
+                ]);
+
+            $recentActivityFeed = PointTransaction::query()
+                ->when(! $user->canDo('school.manage'), fn ($query) => $query->whereIn('student_user_id', $students->pluck('id')))
+                ->with(['student.studentProfile.schoolClass', 'actor'])
+                ->latest()
+                ->limit(6)
+                ->get();
         }
 
         $children = $user->isRole('parent')
@@ -107,6 +183,7 @@ class DashboardController extends Controller
         $profileClasses = collect();
         $selectedClassId = $request->integer('class') ?: null;
         $progress = collect();
+        $reportGrades = collect();
         $todayAttendance = null;
         $attendanceSetting = null;
 
@@ -130,6 +207,22 @@ class DashboardController extends Controller
             $progress = $profileStudents->mapWithKeys(fn (User $student) => [
                 $student->id => $progressService->summarize($student, $selectedSemester, $selectedClassId),
             ]);
+
+            $reportGrades = $profileStudents->mapWithKeys(function (User $student) use ($selectedSemester, $selectedClassId) {
+                $assessments = GradeAssessment::query()
+                    ->where('semester_id', $selectedSemester?->id)
+                    ->whereHas('grades', fn ($query) => $query->where('student_user_id', $student->id))
+                    ->when($selectedClassId, fn ($query) => $query->where('school_class_id', $selectedClassId))
+                    ->with([
+                        'subject',
+                        'grades' => fn ($query) => $query->where('student_user_id', $student->id),
+                    ])
+                    ->orderBy('subject_id')
+                    ->orderBy('assessed_on')
+                    ->get();
+
+                return [$student->id => $assessments->groupBy(fn ($assessment) => $assessment->subject?->name ?? 'Mata pelajaran')];
+            });
         }
 
         if ($user->isRole('student')) {
@@ -138,6 +231,16 @@ class DashboardController extends Controller
                 ->whereDate('attendance_date', today())
                 ->first();
             $attendanceSetting = SchoolSetting::active();
+        }
+
+        $pendingPermitsCount = 0;
+        if (! in_array($user->role, ['student', 'parent'], true)) {
+            $pendingPermitsCount = AttendancePermission::query()
+                ->when($user->isRole('teacher') && ! $user->canDo('school.manage'), function ($q) use ($user) {
+                    $q->whereIn('school_class_id', $user->homeroomClasses()->pluck('id'));
+                })
+                ->where('status', 'pending')
+                ->count();
         }
 
         return view('dashboard', [
@@ -155,8 +258,14 @@ class DashboardController extends Controller
             'profileClasses' => $profileClasses,
             'selectedClassId' => $selectedClassId,
             'progress' => $progress,
+            'reportGrades' => $reportGrades,
             'todayAttendance' => $todayAttendance,
             'attendanceSetting' => $attendanceSetting,
+            'attendanceBreakdown' => $attendanceBreakdown,
+            'levelDistribution' => $levelDistribution,
+            'weeklyAttendanceTrend' => $weeklyAttendanceTrend,
+            'recentActivityFeed' => $recentActivityFeed,
+            'pendingPermitsCount' => $pendingPermitsCount,
         ]);
     }
 }

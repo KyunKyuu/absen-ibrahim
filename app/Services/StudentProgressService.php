@@ -37,9 +37,14 @@ class StudentProgressService
 
         $timeline = $attendances->take(30)->map(fn (Attendance $attendance) => [
             'date' => $attendance->attendance_date,
-            'title' => $attendance->is_ontime ? 'Hadir tepat waktu' : 'Hadir terlambat',
-            'detail' => trim(($attendance->schoolClass?->name ?? 'Tanpa kelas').' · '.ucfirst($attendance->source)),
-            'points' => $attendance->is_ontime ? 5 : 1,
+            'title' => $attendance->is_ontime ? 'Hadir tepat waktu' : match ($attendance->status) {
+                'sick' => 'Izin sakit',
+                'excused' => 'Izin dispensasi',
+                'absent' => 'Alpa / tidak hadir',
+                default => 'Hadir terlambat',
+            },
+            'detail' => trim(($attendance->schoolClass?->name ?? 'Tanpa kelas').' · '.($attendance->source === 'permit' ? 'Pengajuan izin' : ucfirst($attendance->source))),
+            'points' => $attendance->is_ontime ? 5 : ($attendance->status === 'late' ? 1 : 0),
             'type' => 'attendance',
         ])->concat($pointTransactions->map(fn (PointTransaction $transaction) => [
             'date' => $transaction->created_at,

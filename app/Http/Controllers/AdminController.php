@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
 use App\Models\AchievementAssessment;
+use App\Models\AssessmentMaster;
 use App\Models\Attendance;
 use App\Models\AttitudeAssessment;
 use App\Models\GradeAssessment;
@@ -19,6 +20,7 @@ use App\Models\StudentClassHistory;
 use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\TeacherProfile;
+use App\Models\TeacherAttitudeCredit;
 use App\Models\TeachingAssignment;
 use App\Models\User;
 use App\Services\FinanceService;
@@ -71,7 +73,8 @@ class AdminController extends Controller
     public function showStudent(Request $request, User $student)
     {
         $user = $request->user();
-        abort_unless($user->canDo('school.manage') || $user->canDo('assessments.manage'), 403);
+        $isParentOfStudent = $user->isRole('parent') && $user->children()->whereKey($student->id)->exists();
+        abort_unless($user->canDo('school.manage') || $user->canDo('assessments.manage') || $isParentOfStudent, 403);
         abort_unless($student->role === 'student' && $student->studentProfile, 404);
 
         $classIds = SchoolClass::query()
@@ -80,12 +83,12 @@ class AdminController extends Controller
                     ->orWhereHas('teachingAssignments', fn ($assignments) => $assignments->where('teacher_user_id', $user->id));
             }))
             ->pluck('id');
-        abort_unless($user->canDo('school.manage') || $classIds->contains($student->studentProfile->school_class_id), 403);
+        abort_unless($isParentOfStudent || $user->canDo('school.manage') || $classIds->contains($student->studentProfile->school_class_id), 403);
 
         $student->load(['studentProfile.schoolClass.academicYear', 'pointSummary']);
         $allHistoryClassIds = StudentClassHistory::query()->where('student_user_id', $student->id)->pluck('school_class_id')
             ->push($student->studentProfile->school_class_id)->filter()->unique()->values();
-        $availableClassIds = $user->canDo('school.manage') ? $allHistoryClassIds : $allHistoryClassIds->intersect($classIds)->values();
+        $availableClassIds = ($user->canDo('school.manage') || $isParentOfStudent) ? $allHistoryClassIds : $allHistoryClassIds->intersect($classIds)->values();
         $filter = $request->validate([
             'class_id' => ['nullable', 'integer', Rule::in($availableClassIds->all())],
             'attendance_month' => ['nullable', 'date_format:Y-m'],
@@ -184,6 +187,8 @@ class AdminController extends Controller
                 ->orderBy('name')
                 ->get(),
             'teachers' => User::query()->where('role', 'teacher')->where('is_active', true)->orderBy('name')->get(),
+            'teacherCredits' => TeacherAttitudeCredit::query()->pluck('credits', 'teacher_user_id'),
+            'assessmentMasters' => AssessmentMaster::query()->orderBy('kind')->orderBy('name')->get(),
             'subjects' => Subject::query()->orderBy('name')->get(),
             'assignments' => TeachingAssignment::query()->with(['teacher', 'schoolClass', 'subject'])
                 ->orderBy('school_class_id')->orderBy('teacher_user_id')->get(),
@@ -209,7 +214,7 @@ class AdminController extends Controller
                 ->orderBy('name')->get(),
             'todayAttendances' => Attendance::query()->where('school_class_id', $schoolClass->id)
                 ->whereDate('attendance_date', today())->get()->keyBy('student_user_id'),
-            'destinationClasses' => $canManage
+            'destinationClasses' => ($canManage || $schoolClass->homeroom_teacher_id === $request->user()->id)
                 ? SchoolClass::query()->where('id', '!=', $schoolClass->id)->with('academicYear')->orderBy('grade_level')->orderBy('name')->get()
                 : collect(),
         ]);
@@ -272,6 +277,7 @@ class AdminController extends Controller
 
     public function promoteStudents(Request $request, SchoolClass $schoolClass, FinanceService $finance)
     {
+        abort_unless($request->user()->canDo('school.manage') || $schoolClass->homeroom_teacher_id === $request->user()->id, 403);
         $data = $request->validate([
             'student_ids' => ['required', 'array', 'min:1'],
             'student_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
@@ -309,6 +315,28 @@ class AdminController extends Controller
         Subject::query()->create($data);
 
         return back()->with('status', 'Mata pelajaran ditambahkan.');
+    }
+
+    public function storeAssessmentMaster(Request $request)
+    {
+        $data = $request->validate([
+            'kind' => ['required', 'in:attitude,achievement,violation'],
+            'name' => ['required', 'string', 'max:100'],
+            'group_name' => ['nullable', 'string', 'max:100'],
+            'points' => ['nullable', 'integer', 'between:-100,100'],
+            'score' => ['nullable', 'integer', 'between:1,5'],
+            'sanction' => ['nullable', 'string', 'max:255'],
+        ]);
+        AssessmentMaster::query()->updateOrCreate(['kind' => $data['kind'], 'name' => $data['name']], [...$data, 'is_active' => true]);
+        return back()->with('status', 'Master penilaian berhasil disimpan.');
+    }
+
+    public function updateTeacherCredits(Request $request, User $user)
+    {
+        abort_unless($user->isRole('teacher'), 404);
+        $data = $request->validate(['credits' => ['required', 'integer', 'min:1', 'max:100000']]);
+        TeacherAttitudeCredit::query()->updateOrCreate(['teacher_user_id' => $user->id], ['credits' => $data['credits']]);
+        return back()->with('status', 'Kredit penilaian guru berhasil diperbarui.');
     }
 
     public function storeTeachingAssignment(Request $request)
@@ -391,9 +419,10 @@ class AdminController extends Controller
             'nis' => [Rule::requiredIf($roleName === 'student'), 'nullable', 'string', 'max:50', 'unique:student_profiles,nis'],
             'employee_number' => [Rule::requiredIf($roleName === 'teacher'), 'nullable', 'string', 'max:50', 'unique:teacher_profiles,employee_number'],
             'phone' => ['nullable', 'string', 'max:30'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
-        DB::transaction(function () use ($data, $roleName) {
+        DB::transaction(function () use ($data, $roleName, $request) {
             $user = User::query()->create([
                 'name' => $data['name'],
                 'username' => $data['username'] ?? null,
@@ -409,6 +438,7 @@ class AdminController extends Controller
                     'user_id' => $user->id,
                     'school_class_id' => $data['school_class_id'] ?? null,
                     'nis' => $data['nis'] ?? null,
+                    'photo_path' => $request->hasFile('photo') ? $request->file('photo')->store('student-photos', 'public') : null,
                 ]),
                 'teacher' => TeacherProfile::query()->create([
                     'user_id' => $user->id,
@@ -542,13 +572,15 @@ class AdminController extends Controller
 
     public function settings(string $section = 'general')
     {
-        abort_unless(in_array($section, ['general', 'classes', 'academic', 'iot'], true), 404);
+        abort_unless(in_array($section, ['general', 'credits', 'masters', 'classes', 'academic', 'iot'], true), 404);
 
         return view('admin.settings', [
             'section' => $section,
             'setting' => SchoolSetting::active(),
             'classes' => SchoolClass::query()->with(['homeroomTeacher', 'classLeader'])->latest()->get(),
             'teachers' => User::query()->where('role', 'teacher')->where('is_active', true)->orderBy('name')->get(),
+            'teacherCredits' => TeacherAttitudeCredit::query()->pluck('credits', 'teacher_user_id'),
+            'assessmentMasters' => AssessmentMaster::query()->orderBy('kind')->orderBy('name')->get(),
             'students' => User::query()->where('role', 'student')->where('is_active', true)->with('studentProfile')->orderBy('name')->get(),
             'devices' => IotDevice::query()->latest()->get(),
             'academicYears' => AcademicYear::query()->orderByDesc('starts_on')->get(),
@@ -562,6 +594,9 @@ class AdminController extends Controller
             'school_name' => ['required', 'string', 'max:255'],
             'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'required_with:latitude', 'numeric', 'between:-180,180'],
+            'latitude_2' => ['nullable', 'required_with:longitude_2', 'numeric', 'between:-90,90'],
+            'longitude_2' => ['nullable', 'required_with:latitude_2', 'numeric', 'between:-180,180'],
+            'attendance_radius_meters_2' => ['nullable', 'integer', 'min:10', 'max:5000'],
             'attendance_radius_meters' => ['required', 'integer', 'min:10', 'max:5000'],
             'max_location_accuracy_meters' => ['required', 'integer', 'min:5', 'max:1000'],
             'attendance_open_time' => ['required', 'date_format:H:i'],

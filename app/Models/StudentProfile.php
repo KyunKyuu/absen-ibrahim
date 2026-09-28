@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class StudentProfile extends Model
 {
-    protected $fillable = ['user_id', 'school_class_id', 'nis', 'birth_date', 'gender'];
+    protected $fillable = ['user_id', 'school_class_id', 'nis', 'birth_date', 'gender', 'photo_path'];
 
     protected function casts(): array
     {

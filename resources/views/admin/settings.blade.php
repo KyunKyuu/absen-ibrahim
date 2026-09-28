@@ -1,6 +1,8 @@
 @php
     $pages = [
         'general' => ['Profil & absensi', 'Atur identitas sekolah, titik lokasi, dan jam operasional absensi.'],
+        'credits' => ['Kredit penilaian guru', 'Atur kuota kredit guru untuk penilaian sikap.'],
+        'masters' => ['Master penilaian', 'Kelola master sikap, penghargaan, dan pelanggaran.'],
         'classes' => ['Kelas & wali kelas', 'Kelola daftar kelas dan guru yang bertanggung jawab sebagai wali kelas.'],
         'academic' => ['Tahun ajaran & semester', 'Susun periode akademik aktif tanpa bercampur dengan pengaturan lain.'],
         'iot' => ['Perangkat IoT', 'Daftarkan dan pantau perangkat fingerprint sekolah.'],
@@ -8,6 +10,9 @@
     [$pageTitle, $pageDescription] = $pages[$section];
 @endphp
 <x-layouts.app :title="$pageTitle">
+    <style>
+        .master-list{display:grid;gap:8px;margin-top:16px;max-height:520px;overflow:auto;padding-right:4px}.master-row{display:grid;grid-template-columns:90px 110px minmax(180px,1fr) 58px;gap:10px;align-items:start;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fbfcfb;font-size:12px}.master-row small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.master-row .master-kind{font-weight:800;color:var(--accent)}.master-row .master-points{text-align:right;font-size:16px;font-weight:850;color:var(--accent)}.master-row .master-points.negative{color:var(--danger)}@media(max-width:700px){.master-row{grid-template-columns:1fr 58px}.master-row .master-kind,.master-row .master-group{font-size:10px}.master-row .master-name{grid-column:1/-1}.master-row .master-sanction{grid-column:1/-1}.master-row .master-points{grid-column:2;grid-row:1;text-align:right}}
+    </style>
     <div class="page-heading"><div class="page-heading-copy"><div class="breadcrumb"><span>Sekolah & IoT</span><span>/</span><span>{{ $pageTitle }}</span></div><h1>{{ $pageTitle }}</h1><p class="muted">{{ $pageDescription }}</p></div></div>
     <nav class="section-tabs" aria-label="Pengaturan sekolah">
         <a class="{{ $section === 'general' ? 'active' : '' }}" href="{{ route('admin.settings') }}">Profil & absensi</a>
@@ -26,6 +31,9 @@
                     <label>Latitude sekolah<input id="school-latitude" name="latitude" value="{{ old('latitude', $setting->latitude) }}"></label>
                     <label>Longitude sekolah<input id="school-longitude" name="longitude" value="{{ old('longitude', $setting->longitude) }}"></label>
                     <label>Maks. radius absensi (meter)<input name="attendance_radius_meters" type="number" min="10" max="5000" value="{{ old('attendance_radius_meters', $setting->attendance_radius_meters) }}" required></label>
+                    <label>Latitude lokasi 2<input name="latitude_2" value="{{ old('latitude_2', $setting->latitude_2) }}"></label>
+                    <label>Longitude lokasi 2<input name="longitude_2" value="{{ old('longitude_2', $setting->longitude_2) }}"></label>
+                    <label>Radius lokasi 2 (meter)<input name="attendance_radius_meters_2" type="number" min="10" max="5000" value="{{ old('attendance_radius_meters_2', $setting->attendance_radius_meters_2) }}"></label>
                     <label>Maks. galat GPS (meter)<input id="school-gps-accuracy" name="max_location_accuracy_meters" type="number" min="5" max="1000" value="{{ old('max_location_accuracy_meters', $setting->max_location_accuracy_meters) }}" required></label>
                 </div>
                 <p class="field-help">Gunakan titik sekolah yang sebenarnya. Absensi diterima jika jarak siswa ditambah galat GPS berada di dalam radius. Akses dari HP memerlukan HTTPS dan izin lokasi presisi.</p>
@@ -42,6 +50,10 @@
             </form>
         </section>
         <script src="{{ asset('js/school-location.js') }}" defer></script>
+    @elseif($section === 'credits')
+        <section class="panel" style="max-width:850px"><h2>Kredit penilaian guru</h2><p class="muted">Superadmin dapat mengatur kuota kredit setiap guru, termasuk lebih dari 100 seperti 120 atau 200.</p><div class="stack">@foreach($teachers as $teacher)<form class="actions" method="post" action="{{ route('admin.users.assessment-credits', $teacher) }}">@csrf<label style="flex:1">{{ $teacher->name }}<input name="credits" type="number" min="1" value="{{ $teacherCredits[$teacher->id] ?? 100 }}" required></label><button class="btn small" type="submit">Simpan kredit</button></form>@endforeach</div></section>
+    @elseif($section === 'masters')
+        <section class="panel"><h2>Master penilaian</h2><form class="stack" method="post" action="{{ route('admin.assessment-masters.store') }}">@csrf<div class="form-grid"><label>Jenis<select name="kind"><option value="attitude">Sikap</option><option value="achievement">Prestasi</option><option value="violation">Pelanggaran</option></select></label><label>Kelompok<input name="group_name"></label><label>Nama<input name="name" required></label><label>Poin<input name="points" type="number" min="-100" max="100"></label><label class="wide">Sanksi<input name="sanction"></label></div><button class="btn primary" type="submit">Tambah master</button></form><div class="master-list"><div class="master-row" style="background:#eef7f2;font-weight:800"><span>Jenis</span><span>Kelompok</span><span>Nama master</span><span>Poin</span></div>@foreach($assessmentMasters as $master)<div class="master-row"><span class="master-kind">{{ $master->kind === 'violation' ? 'Pelanggaran' : ($master->kind === 'achievement' ? 'Penghargaan' : 'Sikap') }}</span><span class="master-group">{{ $master->group_name ?: '-' }}</span><span class="master-name"><strong>{{ $master->name }}</strong>@if($master->sanction)<small>Sanksi: {{ $master->sanction }}</small>@endif</span><span class="master-points {{ ($master->points ?? 0) < 0 ? 'negative' : '' }}">{{ $master->points ?? '—' }}</span></div>@endforeach</div></section>
     @elseif($section === 'classes')
         <div class="grid two">
             <section class="panel">

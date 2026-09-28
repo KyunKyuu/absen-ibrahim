@@ -870,7 +870,12 @@
             <section class="section">
                 <div class="container voices-grid">
                     <div class="voices-label"><p class="eyebrow">Suara keluarga</p><h2>Kepercayaan yang kami jaga.</h2><p>Sekolah dan keluarga berjalan beriringan dalam setiap proses tumbuh anak.</p></div>
-                    <div class="quote-card"><p class="quote">{{ $testimonials->first()->body }}</p><div class="quote-by">{{ $testimonials->first()->title }}<span>{{ $testimonials->first()->kicker }}</span></div></div>
+                    <div class="quote-card" id="testimonial-carousel" style="position:relative;min-height:150px">
+                        @foreach($testimonials as $index => $testimonial)
+                            <div class="testimonial-slide" data-index="{{ $index }}" style="{{ $index ? 'display:none' : '' }}"><p class="quote">{{ $testimonial->body }}</p><div class="quote-by">{{ $testimonial->title }}<span>{{ $testimonial->kicker }}</span></div></div>
+                        @endforeach
+                        @if($testimonials->count() > 1)<div style="display:flex;gap:7px;margin-top:18px">@foreach($testimonials as $index => $testimonial)<button type="button" class="testimonial-dot" data-testimonial="{{ $index }}" aria-label="Testimoni {{ $index + 1 }}" style="width:9px;height:9px;padding:0;border:0;border-radius:50%;background:{{ $index ? '#cbd8d2' : 'var(--orange)' }}"></button>@endforeach</div>@endif
+                    </div>
                 </div>
             </section>
         @endif
@@ -882,6 +887,11 @@
             </div>
         </section>
     </main>
+    @if($testimonials->count() > 1)
+        <script>
+            (() => { const slides = [...document.querySelectorAll('.testimonial-slide')]; const dots = [...document.querySelectorAll('.testimonial-dot')]; let current = 0; const show = (index) => { current = index; slides.forEach((s, i) => s.style.display = i === current ? '' : 'none'); dots.forEach((d, i) => d.style.background = i === current ? 'var(--orange)' : '#cbd8d2'); }; dots.forEach((dot, i) => dot.addEventListener('click', () => show(i))); setInterval(() => show((current + 1) % slides.length), 5000); })();
+        </script>
+    @endif
 
     <footer>
         <div class="container">

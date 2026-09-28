@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendancePermissionController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
@@ -43,9 +44,9 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
     Route::get('/students', [AdminController::class, 'students'])
         ->middleware('permission:school.manage,assessments.manage')->name('students.index');
     Route::get('/students/{student}', [AdminController::class, 'showStudent'])
-        ->middleware('permission:school.manage,assessments.manage')->name('students.show');
+        ->name('students.show');
     Route::post('/classes/{schoolClass}/promote', [AdminController::class, 'promoteStudents'])
-        ->middleware('permission:school.manage')->name('classes.promote');
+        ->middleware('permission:school.manage,assessments.manage')->name('classes.promote');
 
     Route::middleware('role:superadmin')->group(function () {
         Route::get('/admin/landing', [LandingContentController::class, 'index'])->name('admin.landing.index');
@@ -82,6 +83,8 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
 
     Route::middleware('permission:school.manage')->group(function () {
         Route::get('/admin/settings', [AdminController::class, 'settings'])->name('admin.settings');
+        Route::get('/admin/settings/credits', [AdminController::class, 'settings'])->defaults('section', 'credits')->name('admin.settings.credits');
+        Route::get('/admin/settings/masters', [AdminController::class, 'settings'])->defaults('section', 'masters')->name('admin.settings.masters');
         Route::get('/admin/settings/classes', [AdminController::class, 'settings'])->defaults('section', 'classes')->name('admin.settings.classes');
         Route::get('/admin/settings/academic', [AdminController::class, 'settings'])->defaults('section', 'academic')->name('admin.settings.academic');
         Route::get('/admin/settings/iot', [AdminController::class, 'settings'])->defaults('section', 'iot')->name('admin.settings.iot');
@@ -93,12 +96,15 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
         Route::post('/admin/classes/{schoolClass}/leader', [AdminController::class, 'setClassLeader'])->name('admin.classes.leader');
         Route::post('/admin/iot-devices', [AdminController::class, 'storeDevice'])->name('admin.iot-devices.store');
         Route::post('/admin/subjects', [AdminController::class, 'storeSubject'])->name('admin.subjects.store');
+        Route::post('/admin/assessment-masters', [AdminController::class, 'storeAssessmentMaster'])->name('admin.assessment-masters.store');
+        Route::post('/admin/users/{user}/assessment-credits', [AdminController::class, 'updateTeacherCredits'])->name('admin.users.assessment-credits');
         Route::post('/admin/teaching-assignments', [AdminController::class, 'storeTeachingAssignment'])->name('admin.teaching-assignments.store');
         Route::delete('/admin/teaching-assignments/{teachingAssignment}', [AdminController::class, 'destroyTeachingAssignment'])->name('admin.teaching-assignments.destroy');
         Route::post('/classes/students/{student}/promote', [FinanceController::class, 'promoteStudent'])->name('classes.students.promote');
     });
 
     Route::middleware('permission:attendance.checkin')->group(function () {
+        Route::get('/student/attendance', [AttendanceController::class, 'studentCheckIn'])->name('student.attendance');
         Route::post('/attendance/check-in', [AttendanceController::class, 'store'])->middleware('throttle:10,1')->name('attendance.check-in');
     });
 
@@ -106,6 +112,13 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('/attendance/today', [AttendanceController::class, 'index'])->defaults('scope', 'today')->name('attendance.today');
     });
+
+    Route::get('/attendance/permissions', [AttendancePermissionController::class, 'index'])->name('attendance.permissions.index');
+    Route::post('/attendance/permissions', [AttendancePermissionController::class, 'store'])->name('attendance.permissions.store');
+    Route::get('/attendance/permissions/{permission}/attachment', [AttendancePermissionController::class, 'attachment'])->name('attendance.permissions.attachment');
+    Route::post('/attendance/permissions/{permission}/approve', [AttendancePermissionController::class, 'approve'])->name('attendance.permissions.approve');
+    Route::post('/attendance/permissions/{permission}/reject', [AttendancePermissionController::class, 'reject'])->name('attendance.permissions.reject');
+    Route::delete('/attendance/permissions/{permission}', [AttendancePermissionController::class, 'cancel'])->name('attendance.permissions.cancel');
 
     Route::middleware('permission:assessments.manage')->group(function () {
         Route::get('/teacher/grades', [GradeController::class, 'index'])->name('teacher.grades.index');

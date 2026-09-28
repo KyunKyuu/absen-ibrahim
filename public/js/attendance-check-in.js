@@ -13,6 +13,16 @@ export function checkPosition(position, settings, currentTime = Date.now()) {
         return { error: `Galat GPS masih ±${Math.ceil(accuracy)} m; maksimal ±${settings.accuracy} m. Dekati area terbuka.` };
     }
     const radians = value => value * Math.PI / 180;
+    const locations = settings.locations?.length ? settings.locations : [{ latitude: settings.latitude, longitude: settings.longitude, radius: settings.radius }];
+    const nearest = locations.map(location => {
+        const locationA = Math.sin(radians(latitude - location.latitude) / 2) ** 2
+            + Math.cos(radians(location.latitude)) * Math.cos(radians(latitude))
+            * Math.sin(radians(longitude - location.longitude) / 2) ** 2;
+        return { location, distance: Math.round(6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, locationA))))) };
+    }).sort((left, right) => left.distance - right.distance)[0];
+    settings.latitude = nearest.location.latitude;
+    settings.longitude = nearest.location.longitude;
+    settings.radius = nearest.location.radius;
     const a = Math.sin(radians(latitude - settings.latitude) / 2) ** 2
         + Math.cos(radians(settings.latitude)) * Math.cos(radians(latitude))
         * Math.sin(radians(longitude - settings.longitude) / 2) ** 2;
@@ -32,6 +42,10 @@ export function mountAttendance(form, browser = window, nav = navigator, doc = d
     const status = doc.getElementById('geo-status');
     const settings = Object.fromEntries(['latitude', 'longitude', 'radius', 'accuracy']
         .map(key => [key, Number(form.dataset[key])]));
+    settings.locations = [{ latitude: settings.latitude, longitude: settings.longitude, radius: settings.radius }];
+    if (form.dataset.latitude2 && form.dataset.longitude2) {
+        settings.locations.push({ latitude: Number(form.dataset.latitude2), longitude: Number(form.dataset.longitude2), radius: Number(form.dataset.radius2) || settings.radius });
+    }
     let watchId = null;
     let timer = null;
     let running = false;

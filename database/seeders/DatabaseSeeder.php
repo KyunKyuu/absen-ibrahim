@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\AcademicYear;
+use App\Models\AssessmentMaster;
 use App\Models\Achievement;
 use App\Models\LandingItem;
 use App\Models\LandingPage;
@@ -31,6 +32,16 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        foreach ([
+            ['kind' => 'attitude', 'name' => 'Disiplin', 'score' => 3],
+            ['kind' => 'attitude', 'name' => 'Tanggung Jawab', 'score' => 3],
+            ['kind' => 'attitude', 'name' => 'Kerja Sama', 'score' => 3],
+            ['kind' => 'attitude', 'name' => 'Kejujuran', 'score' => 3],
+            ['kind' => 'achievement', 'name' => 'Prestasi umum', 'points' => 10],
+            ['kind' => 'violation', 'name' => 'Pelanggaran umum', 'points' => -10],
+        ] as $master) {
+            AssessmentMaster::query()->firstOrCreate(['kind' => $master['kind'], 'name' => $master['name']], $master);
+        }
         $year = AcademicYear::query()->firstOrCreate([
             'name' => '2026/2027',
         ], [

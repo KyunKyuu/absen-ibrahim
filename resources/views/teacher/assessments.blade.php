@@ -36,18 +36,18 @@
 
                     <div style="border-top:1px solid var(--line);padding-top:18px">
                         <div class="step"><span class="step-number">3</span><h2 style="margin:0">Beri penilaian</h2></div>
-                        @if($subjects->isNotEmpty())<label style="margin-bottom:15px">Mata pelajaran<select name="subject_id" {{ $isAttitude ? 'required' : '' }}><option value="">Pilih mata pelajaran</option>@foreach($subjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select></label>@endif
+                        @if($subjects->isNotEmpty())<label style="margin-bottom:15px">Mata pelajaran<select name="subject_id" {{ $isAttitude ? 'required' : '' }}><option value="">Umum / lintas mata pelajaran</option>@foreach($subjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select></label>@endif
                         @if($isAttitude)
                             <div class="form-grid" style="margin-bottom:15px"><label>Semester<select name="semester_id" required>@foreach($semesters as $semester)<option value="{{ $semester->id }}">{{ $semester->name }} · sisa kredit {{ $attitudeCreditBalance }}</option>@endforeach</select></label><label>Kredit terpakai<input id="attitude-credit-cost" name="credit_cost" type="number" min="1" max="100" value="5" readonly required><span class="field-help">Kuota selalu positif. Dampak poin siswa dapat positif atau minus sesuai skor.</span></label></div>
-                            <label style="margin-bottom:15px">Aspek<select name="aspect" required><option>Disiplin</option><option>Tanggung Jawab</option><option>Kerja Sama</option><option>Kejujuran</option><option>Sopan Santun</option><option>Kepemimpinan</option></select></label>
+                            <label style="margin-bottom:15px">Aspek<select name="aspect" required>@forelse($attitudeMasters as $master)<option value="{{ $master->name }}">{{ $master->name }}</option>@empty<option>Disiplin</option><option>Tanggung Jawab</option><option>Kerja Sama</option>@endforelse</select></label>
                             <div class="score-grid" style="margin-bottom:15px">
                                 @foreach([5 => ['Sangat Baik', 5], 4 => ['Baik', 3], 3 => ['Cukup', 1], 2 => ['Kurang', -3], 1 => ['Buruk', -5]] as $score => [$label, $points])
                                     <label class="score-card"><input type="radio" name="score" value="{{ $score }}" data-points="{{ $points }}" @checked($score === 5) required><strong>{{ $score }}</strong><small>{{ $label }}</small><small>{{ $points > 0 ? '+' : '' }}{{ $points }} poin</small></label>
                                 @endforeach
                             </div>
                         @else
-                            <label style="margin-bottom:15px">Judul<input name="title" placeholder="Contoh: Juara lomba pidato" required></label>
-                            <div class="form-grid" style="margin-bottom:15px"><label>Kategori<select name="category" id="achievement-category" required><option value="achievement">Prestasi / pencapaian</option><option value="violation">Pelanggaran</option></select></label><label>Poin<input id="achievement-points" name="points" type="number" min="-100" max="100" value="10" required></label></div>
+                            <div class="form-grid" style="margin-bottom:15px"><label>Kategori<select name="category" id="achievement-category" required><option value="achievement">Penghargaan / penambahan poin</option><option value="violation">Pelanggaran / pengurangan poin</option></select></label><label>Poin<input id="achievement-points" name="points" type="number" min="-100" max="100" value="10" readonly required></label></div>
+                            <label style="margin-bottom:15px">Jenis penilaian<select name="title" id="achievement-title" required><option value="">Pilih jenis penilaian</option>@foreach($achievementMasters as $master)<option value="{{ $master->name }}" data-points="{{ $master->points }}" data-kind="achievement">{{ $master->group_name ? $master->group_name.' · ' : '' }}{{ $master->name }} ({{ $master->points > 0 ? '+' : '' }}{{ $master->points }})</option>@endforeach @foreach($violationMasters as $master)<option value="{{ $master->name }}" data-points="{{ $master->points }}" data-kind="violation" hidden>{{ $master->group_name ? $master->group_name.' · ' : '' }}{{ $master->name }} ({{ $master->points }})</option>@endforeach</select></label>
                         @endif
                         <label>Catatan<textarea name="notes" placeholder="Tuliskan pengamatan yang konkret"></textarea></label>
                     </div>
@@ -90,8 +90,43 @@
                 const points = Number(input.dataset.points); document.getElementById('point-impact').textContent = (points > 0 ? '+' : '') + points; if (document.getElementById('attitude-credit-cost')) document.getElementById('attitude-credit-cost').value = Math.abs(points);
             }));
             const achievementPoints = document.getElementById('achievement-points');
+            const achievementCategory = document.getElementById('achievement-category');
+            const achievementTitle = document.getElementById('achievement-title');
+            const achievementMasterOptions = achievementTitle
+                ? [...achievementTitle.options]
+                    .filter((option) => option.dataset.kind)
+                    .map((option) => ({
+                        value: option.value,
+                        text: option.textContent,
+                        points: option.dataset.points,
+                        kind: option.dataset.kind,
+                    }))
+                : [];
+            const syncAchievementMasters = () => {
+                if (!achievementTitle || !achievementCategory) return;
+                const kind = achievementCategory.value;
+                const choices = achievementMasterOptions.filter((option) => option.kind === kind);
+                achievementTitle.replaceChildren(new Option('Pilih jenis penilaian', ''));
+                choices.forEach((choice) => {
+                    const option = new Option(choice.text, choice.value);
+                    option.dataset.points = choice.points;
+                    achievementTitle.add(option);
+                });
+                const selected = choices[0];
+                if (selected) {
+                    achievementTitle.value = selected.value;
+                    achievementPoints.value = selected.dataset.points || 0;
+                    achievementPoints.dispatchEvent(new Event('input'));
+                }
+            };
+            achievementTitle?.addEventListener('change', (event) => {
+                const option = event.target.selectedOptions[0];
+                if (option?.dataset.points) achievementPoints.value = option.dataset.points;
+                achievementPoints?.dispatchEvent(new Event('input'));
+            });
             achievementPoints?.addEventListener('input', () => { const points = Number(achievementPoints.value || 0); document.getElementById('point-impact').textContent = (points > 0 ? '+' : '') + points; });
-            document.getElementById('achievement-category')?.addEventListener('change', (event) => { achievementPoints.value = event.target.value === 'violation' ? -10 : 10; achievementPoints.dispatchEvent(new Event('input')); });
+            achievementCategory?.addEventListener('change', syncAchievementMasters);
+            syncAchievementMasters();
         })();
     </script>
 </x-layouts.app>

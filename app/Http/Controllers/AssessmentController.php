@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\AchievementAssessment;
 use App\Models\AttitudeAssessment;
+use App\Models\AssessmentMaster;
 use App\Models\Subject;
 use App\Models\SchoolClass;
 use App\Models\Semester;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use App\Models\TeacherAttitudeCredit;
 use App\Services\PointCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -49,6 +51,9 @@ class AssessmentController extends Controller
                 ->orderBy('name')->get(),
             'semesters' => Semester::query()->where('academic_year_id', $classes->firstWhere('id', $selectedClassId)?->academic_year_id)->where('is_active', true)->orderBy('starts_on')->get(),
             'attitudeCreditBalance' => $this->attitudeCreditBalance($request->user(), $selectedClassId),
+            'attitudeMasters' => AssessmentMaster::query()->where('kind', 'attitude')->where('is_active', true)->orderBy('name')->get(),
+            'achievementMasters' => AssessmentMaster::query()->where('kind', 'achievement')->where('is_active', true)->orderBy('group_name')->orderBy('name')->get(),
+            'violationMasters' => AssessmentMaster::query()->where('kind', 'violation')->where('is_active', true)->orderBy('group_name')->orderBy('name')->get(),
         ]);
     }
 
@@ -66,7 +71,8 @@ class AssessmentController extends Controller
             return 0;
         }
 
-        return max(0, 100 - (int) AttitudeAssessment::query()
+        $allocation = TeacherAttitudeCredit::query()->where('teacher_user_id', $teacher->id)->value('credits') ?? 100;
+        return max(0, $allocation - (int) AttitudeAssessment::query()
             ->where('teacher_user_id', $teacher->id)
             ->where('school_class_id', $classId)
             ->where('subject_id', $assignment->subject_id)
@@ -87,6 +93,7 @@ class AssessmentController extends Controller
         ]);
 
         $student = User::query()->where('role', 'student')->findOrFail($data['student_user_id']);
+
         $teacher = $request->user();
         $classId = $student->studentProfile?->school_class_id;
         $assignment = TeachingAssignment::query()->where('teacher_user_id', $teacher->id)->where('school_class_id', $classId)->where('subject_id', $data['subject_id'])->exists();
@@ -98,8 +105,9 @@ class AssessmentController extends Controller
 
         DB::transaction(function () use ($data, $student, $pointValue, $request, $points, $classId, $teacher) {
             $used = AttitudeAssessment::query()->where('teacher_user_id', $teacher->id)->where('school_class_id', $classId)->where('subject_id', $data['subject_id'])->where('semester_id', $data['semester_id'])->lockForUpdate()->sum('credit_cost');
-            if ($used + (int) $data['credit_cost'] > 100) {
-                throw ValidationException::withMessages(['credit_cost' => 'Kredit penilaian semester ini tidak cukup. Sisa kredit: '.max(0, 100 - $used).'.']);
+            $allocation = TeacherAttitudeCredit::query()->where('teacher_user_id', $teacher->id)->value('credits') ?? 100;
+            if ($used + (int) $data['credit_cost'] > $allocation) {
+                throw ValidationException::withMessages(['credit_cost' => 'Kredit penilaian semester ini tidak cukup. Sisa kredit: '.max(0, $allocation - $used).'.']);
             }
             $assessment = AttitudeAssessment::query()->create([
                 ...$data,
@@ -128,10 +136,26 @@ class AssessmentController extends Controller
 
         $student = User::query()->where('role', 'student')->findOrFail($data['student_user_id']);
 
+        $master = AssessmentMaster::query()
+            ->where('kind', $data['category'])
+            ->where('name', $data['title'])
+            ->where('is_active', true)
+            ->first();
+        if ($master?->points !== null) {
+            $data['points'] = (int) $master->points;
+        }
+
         if (($data['category'] === 'achievement' && $data['points'] <= 0)
             || ($data['category'] === 'violation' && $data['points'] >= 0)) {
             throw ValidationException::withMessages([
                 'points' => 'Prestasi harus berpoin positif dan pelanggaran harus berpoin negatif.',
+            ]);
+        }
+
+        if ($data['category'] === 'achievement'
+            && (($student->pointSummary?->general_points ?? 0) + (int) $data['points']) > 100) {
+            throw ValidationException::withMessages([
+                'points' => 'Penambahan poin tidak dapat membuat total poin siswa melebihi 100.',
             ]);
         }
 

@@ -62,7 +62,7 @@
             $selectedRoleName = $selectedRole?->name;
         @endphp
         <section class="panel" style="max-width:900px">
-            <form class="stack" method="post" action="{{ route('admin.users.store') }}">@csrf
+            <form class="stack" method="post" enctype="multipart/form-data" action="{{ route('admin.users.store') }}">@csrf
                 <div class="form-grid">
                     <label>Nama<input name="name" value="{{ old('name') }}" required></label>
                     <label>Username<input name="username" value="{{ old('username') }}" placeholder="nama.siswa"></label>
@@ -73,6 +73,7 @@
                     <label class="role-fields" data-role-fields="student" @if($selectedRoleName !== 'student') hidden @endif>NIS / ID siswa<input name="nis" value="{{ old('nis') }}" data-required="true" placeholder="Nomor induk siswa"></label>
                     <label class="role-fields" data-role-fields="teacher" @if($selectedRoleName !== 'teacher') hidden @endif>NIP guru<input name="employee_number" value="{{ old('employee_number') }}" data-required="true" placeholder="Nomor induk pegawai"></label>
                     <label class="role-fields" data-role-fields="parent" @if($selectedRoleName !== 'parent') hidden @endif>No. HP orang tua<input name="phone" value="{{ old('phone') }}" placeholder="08... atau 628..."></label>
+                    <label class="role-fields" data-role-fields="student" @if($selectedRoleName !== 'student') hidden @endif>Foto siswa<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
                 </div>
                 <p class="muted">Akun baru wajib mengganti password saat login pertama.</p>
                 <div class="actions"><button class="btn primary" type="submit">Buat akun</button><a class="btn" href="{{ route('admin.users') }}">Batal</a></div>

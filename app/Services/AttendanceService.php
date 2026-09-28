@@ -29,7 +29,11 @@ class AttendanceService
             throw ValidationException::withMessages(['latitude' => 'Pembacaan GPS tidak valid. Ambil lokasi kembali.']);
         }
 
-        if ($setting->latitude === null || $setting->longitude === null) {
+        $locations = collect([
+            [(float) $setting->latitude, (float) $setting->longitude, (int) $setting->attendance_radius_meters],
+            [(float) $setting->latitude_2, (float) $setting->longitude_2, (int) ($setting->attendance_radius_meters_2 ?: $setting->attendance_radius_meters)],
+        ])->filter(fn ($location) => $location[0] !== 0.0 || $location[1] !== 0.0);
+        if ($locations->isEmpty()) {
             throw ValidationException::withMessages([
                 'latitude' => 'Lokasi sekolah belum diatur admin.',
             ]);
@@ -41,8 +45,13 @@ class AttendanceService
             ]);
         }
 
-        $distance = $this->geoDistance->meters((float) $setting->latitude, (float) $setting->longitude, $latitude, $longitude);
-        $withinRadius = $distance <= $setting->attendance_radius_meters;
+        $nearest = $locations->map(fn ($location) => [
+            'distance' => $this->geoDistance->meters($location[0], $location[1], $latitude, $longitude),
+            'radius' => $location[2],
+        ])->sortBy('distance')->first();
+        $distance = $nearest['distance'];
+        $radius = $nearest['radius'];
+        $withinRadius = $distance <= $radius;
 
         if (! $withinRadius) {
             throw ValidationException::withMessages([
@@ -50,7 +59,7 @@ class AttendanceService
             ]);
         }
 
-        if ($distance + $accuracy > $setting->attendance_radius_meters) {
+        if ($distance + $accuracy > $radius) {
             throw ValidationException::withMessages([
                 'accuracy' => 'Lokasi masih terlalu dekat batas area dengan galat GPS saat ini. Dekati titik absensi sekolah dan tunggu GPS lebih akurat.',
             ]);

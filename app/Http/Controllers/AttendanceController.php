@@ -4,12 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\SchoolClass;
+use App\Models\SchoolSetting;
 use App\Services\AttendanceService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class AttendanceController extends Controller
 {
+    public function studentCheckIn(Request $request)
+    {
+        abort_unless($request->user()->isRole('student'), 403);
+
+        return view('attendance.student-check-in', [
+            'attendance' => Attendance::query()
+                ->where('student_user_id', $request->user()->id)
+                ->whereDate('attendance_date', today())
+                ->first(),
+            'setting' => SchoolSetting::active(),
+        ]);
+    }
+
     public function store(Request $request, AttendanceService $attendanceService)
     {
         abort_unless($request->user()->isRole('student'), 403);
@@ -55,7 +69,7 @@ class AttendanceController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
             'class' => ['nullable', 'integer', 'exists:school_classes,id'],
             'source' => ['nullable', 'in:web,iot'],
-            'status' => ['nullable', 'in:present,late,excused,absent'],
+            'status' => ['nullable', 'in:present,late,sick,excused,absent'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
         ]);
@@ -74,7 +88,7 @@ class AttendanceController extends Controller
                 ->when(($filters['status'] ?? null) === 'late', fn ($query) => $query->where(fn ($late) => $late->where('status', 'late')
                     ->orWhere(fn ($legacy) => $legacy->where('status', 'present')->where('is_ontime', false))))
                 ->when(($filters['status'] ?? null) === 'present', fn ($query) => $query->where('status', 'present')->where('is_ontime', true))
-                ->when(in_array($filters['status'] ?? null, ['excused', 'absent'], true), fn ($query) => $query->where('status', $filters['status']))
+                ->when(in_array($filters['status'] ?? null, ['sick', 'excused', 'absent'], true), fn ($query) => $query->where('status', $filters['status']))
                 ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('attendance_date', '>=', $date))
                 ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('attendance_date', '<=', $date))
                 ->latest('attendance_date')
