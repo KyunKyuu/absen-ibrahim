@@ -8,9 +8,20 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (! Schema::hasColumn('assessment_masters', 'group_name')) {
+            Schema::table('assessment_masters', function (Blueprint $table) {
+                $table->string('group_name')->nullable()->after('kind');
+            });
+        }
+
+        if (! Schema::hasColumn('assessment_masters', 'sanction')) {
+            Schema::table('assessment_masters', function (Blueprint $table) {
+                $table->text('sanction')->nullable()->after('points');
+            });
+        }
+
         Schema::table('assessment_masters', function (Blueprint $table) {
-            $table->string('group_name')->nullable()->after('kind');
-            $table->text('sanction')->nullable()->after('points');
+            $table->string('name', 255)->change();
         });
 
         $path = base_path('pelanggaran.md');

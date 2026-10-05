@@ -10,7 +10,7 @@ return new class extends Migration {
         Schema::create('assessment_masters', function (Blueprint $table) {
             $table->id();
             $table->string('kind', 30);
-            $table->string('name', 100);
+            $table->string('name', 255);
             $table->integer('points')->nullable();
             $table->unsignedTinyInteger('score')->nullable();
             $table->boolean('is_active')->default(true);
