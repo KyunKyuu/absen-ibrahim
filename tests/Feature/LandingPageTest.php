@@ -177,6 +177,9 @@ class LandingPageTest extends TestCase
             ->assertSee('Tahfiz Cilik Gemilang')
             ->assertSee('Generasi qurani berkarakter mulia.')
             ->assertSee('Pilih Sahabat Petualangmu Hari Ini')
-            ->assertSee('Bintang');
+            ->assertSee('Bintang')
+            ->assertSee('Si Oyen')
+            ->assertSee('buildCat')
+            ->assertSee('interactWithCat');
     }
 }
