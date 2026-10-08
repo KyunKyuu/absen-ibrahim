@@ -21,16 +21,12 @@ class FinanceController extends Controller
         $user = $request->user();
         $canManage = $user->canDo('finance.manage');
         $isPayer = $user->hasAnyRole(['student', 'parent']);
-        $isProposer = ! $canManage && (
-            $user->canDo('finance.propose')
-            || SchoolClass::query()->where('homeroom_teacher_id', $user->id)->orWhere('class_leader_user_id', $user->id)->exists()
-            || FinanceProposal::query()->where('proposed_by_user_id', $user->id)->exists()
-        );
+        $isProposer = ! $canManage && SchoolClass::query()->where('homeroom_teacher_id', $user->id)->exists();
         abort_unless($canManage || $isProposer || $isPayer, 403);
         $allowedSections = $canManage
             ? ['bills', 'issue', 'fee-types', 'proposals', 'record-payment', 'confirmations', 'payments']
             : ($isPayer
-                ? ($isProposer ? ['bills', 'proposals', 'payments'] : ['bills', 'payments'])
+                ? ['bills', 'payments']
                 : ['bills', 'proposals']);
         abort_unless(in_array($section, $allowedSections, true), 403);
 
@@ -39,8 +35,13 @@ class FinanceController extends Controller
             : ($user->hasRole('parent') ? $user->children()->pluck('users.id') : collect());
 
         $bills = StudentBill::query()->with(['student.studentProfile.schoolClass', 'schoolClass', 'payments', 'proposal.proposer'])
-            ->when($isPayer, fn ($query) => $query->whereIn('student_user_id', $studentIds))
-            ->when(! $canManage && ! $isPayer, fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($user->hasRole('parent'), fn ($query) => $query->whereIn('student_user_id', $studentIds))
+            ->when($user->hasRole('student'), fn ($query) => $query->whereIn('student_user_id', $studentIds)
+                ->whereHas('proposal', fn ($proposal) => $proposal->where('billing_mode', 'collective')))
+            ->when(! $canManage && ! $isPayer && $isProposer, fn ($query) => $query->whereHas('proposal', fn ($proposal) => $proposal
+                ->where('billing_mode', 'collective')
+                ->whereHas('schoolClass', fn ($class) => $class->where('homeroom_teacher_id', $user->id))))
+            ->when(! $canManage && ! $isPayer && ! $isProposer, fn ($query) => $query->whereRaw('1 = 0'))
             ->latest()
             ->paginate(40)
             ->withQueryString();
@@ -48,8 +49,13 @@ class FinanceController extends Controller
         $payments = StudentPayment::query()
             ->with(['bill.student', 'submittedBy', 'reviewer'])
             ->when($section === 'confirmations', fn ($query) => $query->where('status', 'pending'))
-            ->when($isPayer, fn ($query) => $query->whereHas('bill', fn ($bill) => $bill->whereIn('student_user_id', $studentIds)))
-            ->when(! $canManage && ! $isPayer, fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($canManage && $section === 'confirmations', fn ($query) => $query->whereHas('bill', fn ($bill) => $bill
+                ->whereDoesntHave('proposal', fn ($proposal) => $proposal->where('billing_mode', 'collective'))))
+            ->when($user->hasAnyRole(['student', 'parent']), fn ($query) => $query->whereHas('bill', fn ($bill) => $bill->whereIn('student_user_id', $studentIds)
+                ->when($user->hasRole('student'), fn ($bills) => $bills->whereHas('proposal', fn ($proposal) => $proposal->where('billing_mode', 'collective')))))
+            ->when(! $canManage && ! $isPayer && $isProposer, fn ($query) => $query->whereHas('bill.proposal', fn ($proposal) => $proposal
+                ->where('billing_mode', 'collective')->whereHas('schoolClass', fn ($class) => $class->where('homeroom_teacher_id', $user->id))))
+            ->when(! $canManage && ! $isPayer && ! $isProposer, fn ($query) => $query->whereRaw('1 = 0'))
             ->latest()
             ->paginate(30, ['*'], 'payments_page')
             ->withQueryString();
@@ -61,22 +67,30 @@ class FinanceController extends Controller
                 'bills.student.studentProfile',
                 'bills.payments' => fn ($query) => $query->latest(),
             ])
-            ->when(! $canManage && $isProposer, fn ($query) => $query->where('proposed_by_user_id', $user->id))
+            ->when(! $canManage && $isProposer, fn ($query) => $query->whereHas('schoolClass', fn ($class) => $class->where('homeroom_teacher_id', $user->id)))
             ->when(! $canManage && ! $isProposer, fn ($query) => $query->whereRaw('1 = 0'))
             ->latest()
             ->get();
 
         $classes = $canManage
             ? SchoolClass::query()->with('academicYear')->orderBy('name')->get()
-            : SchoolClass::query()->where(function ($query) use ($user) {
-                $query->where('homeroom_teacher_id', $user->id)
-                    ->orWhere('class_leader_user_id', $user->id);
-            })->with('academicYear')->orderBy('name')->get();
+            : SchoolClass::query()->where('homeroom_teacher_id', $user->id)
+                ->with('academicYear')->orderBy('name')->get();
+        $requestedClassId = $request->integer('school_class_id');
+        abort_if($requestedClassId && ! $classes->contains('id', $requestedClassId), 404);
+        $selectedClassId = $requestedClassId ?: $classes->first()?->id;
+        $students = $canManage && $selectedClassId
+            ? User::query()->where('role', 'student')->where('is_active', true)
+                ->whereHas('studentProfile', fn ($profile) => $profile->where('school_class_id', $selectedClassId))
+                ->with('studentProfile')->orderBy('name')->get()
+            : collect();
 
         $availableBills = $canManage
-            ? StudentBill::query()->with('student')->where('status', '!=', 'paid')->orderByDesc('created_at')->get()
+            ? StudentBill::query()->with('student')->where('status', '!=', 'paid')
+                ->whereDoesntHave('proposal', fn ($proposal) => $proposal->where('billing_mode', 'collective'))
+                ->orderByDesc('created_at')->get()
             : ($isProposer
-                ? StudentBill::query()->with('student')->whereHas('proposal', fn ($q) => $q->where('proposed_by_user_id', $user->id))->where('status', '!=', 'paid')->orderByDesc('created_at')->get()
+                ? StudentBill::query()->with('student')->whereHas('proposal', fn ($q) => $q->where('billing_mode', 'collective')->whereHas('schoolClass', fn ($class) => $class->where('homeroom_teacher_id', $user->id)))->where('status', '!=', 'paid')->orderByDesc('created_at')->get()
                 : collect());
 
         return view('finance.index', [
@@ -85,14 +99,14 @@ class FinanceController extends Controller
             'canManage' => $canManage,
             'isPayer' => $isPayer,
             'isProposer' => $isProposer,
+            'isStudent' => $user->hasRole('student'),
             'bills' => $bills,
             'payments' => $payments,
             'proposals' => $proposals,
             'feeTypes' => $canManage ? SchoolFeeType::query()->where('is_active', true)->orderBy('name')->get() : collect(),
             'classes' => $classes,
-            'students' => $canManage
-                ? User::query()->where('role', 'student')->with('studentProfile.schoolClass')->orderBy('name')->get()
-                : collect(),
+            'selectedClassId' => $selectedClassId,
+            'students' => $students,
             'availableBills' => $availableBills,
         ]);
     }
@@ -119,9 +133,14 @@ class FinanceController extends Controller
             'school_fee_type_id' => ['required', 'exists:school_fee_types,id'],
             'school_class_id' => ['required', 'exists:school_classes,id'],
             'billing_period' => ['required', 'string', 'max:30'],
-            'amount' => ['required', 'integer', 'min:1'],
+            'amounts' => ['required', 'array', 'min:1'],
+            'amounts.*' => ['nullable', 'integer', 'min:1'],
             'due_date' => ['nullable', 'date'],
         ]);
+
+        if (collect($data['amounts'])->filter(fn ($amount) => $amount !== null && $amount !== '')->isEmpty()) {
+            throw ValidationException::withMessages(['amounts' => 'Isi nominal untuk minimal satu siswa.']);
+        }
 
         $feeType = SchoolFeeType::query()->findOrFail($data['school_fee_type_id']);
 
@@ -138,7 +157,7 @@ class FinanceController extends Controller
             $feeType,
             SchoolClass::query()->findOrFail($data['school_class_id']),
             $data['billing_period'],
-            (int) $data['amount'],
+            $data['amounts'],
             $data['due_date'] ?? null,
             $request->user(),
         );
@@ -168,13 +187,32 @@ class FinanceController extends Controller
 
         $schoolClass = $classQuery->findOrFail($data['school_class_id']);
 
-        FinanceProposal::query()->create([
+        if ($data['billing_mode'] === 'collective' && $schoolClass->homeroom_teacher_id !== $user->id) {
+            abort(403);
+        }
+        if ($data['billing_mode'] === 'collective') {
+            $studentCount = User::query()->where('role', 'student')->where('is_active', true)
+                ->whereHas('studentProfile', fn ($profile) => $profile->where('school_class_id', $schoolClass->id))->count();
+            if ($studentCount === 0 || (int) $data['amount'] < $studentCount) {
+                throw ValidationException::withMessages(['amount' => $studentCount === 0
+                    ? 'Kelas belum memiliki siswa aktif.'
+                    : 'Target kolektif tidak cukup untuk dibagi ke seluruh siswa kelas.']);
+            }
+        }
+
+        $proposal = FinanceProposal::query()->create([
             ...$data,
             'proposed_by_user_id' => $user->id,
             'academic_year_id' => $schoolClass->academic_year_id,
         ]);
 
-        return back()->with('status', 'Usulan biaya dikirim dan menunggu verifikasi TU.');
+        if ($data['billing_mode'] === 'collective') {
+            app(FinanceService::class)->publishProposal($proposal, null);
+        }
+
+        return back()->with('status', $data['billing_mode'] === 'collective'
+            ? 'Tagihan kolektif langsung diterbitkan untuk siswa kelas Anda.'
+            : 'Usulan biaya dikirim dan menunggu verifikasi TU.');
     }
 
     public function approveProposal(Request $request, FinanceProposal $proposal, FinanceService $finance)
@@ -292,13 +330,20 @@ class FinanceController extends Controller
 
     public function canCollectBill(User $user, StudentBill $bill): bool
     {
+        if ($bill->finance_proposal_id) {
+            $bill->loadMissing('proposal');
+
+            if ($bill->proposal?->billing_mode === 'collective') {
+                return $bill->proposal->proposed_by_user_id === $user->id
+                    && $bill->schoolClass?->homeroom_teacher_id === $user->id;
+            }
+        }
+
         if ($user->canDo('finance.manage')) {
             return true;
         }
 
         if ($bill->finance_proposal_id) {
-            $bill->loadMissing('proposal');
-
             return $bill->proposal && $bill->proposal->proposed_by_user_id === $user->id;
         }
 
@@ -308,7 +353,9 @@ class FinanceController extends Controller
     private function canAccessBill(User $user, StudentBill $bill): bool
     {
         if ($user->hasRole('student')) {
-            return $bill->student_user_id === $user->id;
+            $bill->loadMissing('proposal');
+
+            return $bill->student_user_id === $user->id && $bill->proposal?->billing_mode === 'collective';
         }
 
         if ($user->hasRole('parent')) {

@@ -82,7 +82,7 @@ class GradeController extends Controller
             'kind' => $data['kind'], 'title' => $data['title'], 'assessed_on' => $data['assessed_on'],
         ]);
 
-        return redirect()->route('teacher.grades.show', $assessment)->with('status', 'Penilaian dibuat. Silakan isi nilai siswa.');
+        return redirect()->route('teacher.grades.show', $assessment)->with('status', 'Penugasan dibuat dan diinformasikan di dashboard siswa. Silakan isi nilai sekarang atau nanti.');
     }
 
     public function show(Request $request, GradeAssessment $assessment)

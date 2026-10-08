@@ -1065,6 +1065,51 @@
          ============================================================== -->
     @if($user->role === 'student')
         <div class="stack">
+            <section class="panel">
+                <div class="topbar" style="margin-bottom:12px">
+                    <div><span class="eyebrow">Informasi akademik</span><h2 style="margin:4px 0">Tugas & ulangan harian</h2><p class="muted" style="margin:0">Jadwal dari guru untuk kelas Anda.</p></div>
+                    <span class="badge">{{ $announcedAssessments->count() }} jadwal</span>
+                </div>
+                <div class="activity-list">
+                    @forelse($announcedAssessments as $assessment)
+                        <div class="activity-row">
+                            <span><strong>{{ $assessment->title }}</strong><small>{{ $assessment->subject?->name ?? 'Mata pelajaran' }} · {{ $assessment->teacher?->name ?? 'Guru' }}</small></span>
+                            <span class="badge">{{ \App\Models\GradeAssessment::KINDS[$assessment->kind] ?? ucfirst($assessment->kind) }} · {{ $assessment->assessed_on?->format('d M Y') }}</span>
+                        </div>
+                    @empty
+                        <div class="muted">Belum ada tugas atau ulangan yang dijadwalkan.</div>
+                    @endforelse
+                </div>
+            </section>
+            <section class="panel admin-podium-panel">
+                <div class="podium-header">
+                    <div>
+                        <span class="podium-eyebrow">🏆 Peringkat kelas</span>
+                        <h2>Podium siswa rajin &amp; teladan</h2>
+                        <span class="muted">{{ $podiumClassLabel ? 'Kelas '.$podiumClassLabel.' · ' : '' }}berdasarkan poin positif</span>
+                    </div>
+                </div>
+                @if($podium->isNotEmpty())
+                    <div class="admin-podium" aria-label="Podium siswa di kelas {{ $podiumClassLabel }}">
+                        @foreach($podium->take(3) as $summary)
+                            <article class="admin-podium-place">
+                                <div class="podium-avatar-wrap">
+                                    @if($loop->iteration === 1)<div class="crown-float" aria-hidden="true">👑</div>@endif
+                                    <div class="admin-podium-avatar" aria-hidden="true">{{ mb_substr($summary->student?->name ?? '?', 0, 1) }}</div>
+                                    <div class="avatar-badge-chip {{ $loop->iteration === 1 ? 'gold' : ($loop->iteration === 2 ? 'silver' : 'bronze') }}" aria-hidden="true">{{ $loop->iteration === 1 ? '🥇' : ($loop->iteration === 2 ? '🥈' : '🥉') }}</div>
+                                </div>
+                                <strong class="podium-student-name">{{ $summary->student?->name }}</strong>
+                                <small class="podium-student-class">{{ $summary->student?->studentProfile?->schoolClass?->name }}</small>
+                                <span class="admin-podium-points">{{ number_format($summary->general_points) }} poin</span>
+                                <div class="admin-podium-step" aria-label="Peringkat {{ $loop->iteration }}"><span class="admin-podium-step-num">{{ $loop->iteration }}</span></div>
+                            </article>
+                        @endforeach
+                    </div>
+                    <div class="podium-stage-base" aria-hidden="true"></div>
+                @else
+                    <div class="muted" style="padding:28px 20px;text-align:center">Belum ada poin positif yang tercatat di kelas Anda.</div>
+                @endif
+            </section>
             <section class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:18px;padding:20px;background:linear-gradient(135deg,#e7f5ed,#fff);border-color:#b9dfca;">
                 <div><span class="eyebrow">Absensi harian</span><h2 style="margin:5px 0 3px">Siap melakukan absensi?</h2><p class="muted" style="margin:0">Buka halaman absensi khusus agar proses GPS lebih mudah dari HP.</p></div>
                 <a class="btn primary" href="{{ route('student.attendance') }}">Buka absensi →</a>

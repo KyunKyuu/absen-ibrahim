@@ -82,6 +82,8 @@
                     @forelse($parents as $parent)<div class="activity-row"><span><strong>{{ $parent->name }}</strong><small>{{ ucfirst($parent->relationship) }} · {{ $parent->email ?? 'Email belum diisi' }}</small></span><small>{{ $parent->phone ?? '-' }}</small></div>
                     @empty<div class="muted">Belum ada akun orang tua yang terhubung.</div>@endforelse
                 </div></section>
+            @endif
+            @if($canViewStudentFinance)
                 <section class="panel"><h2>Ringkasan tagihan</h2><div class="activity-list">
                     @forelse($bills as $bill)<div class="activity-row"><span><strong>{{ $bill->title }}</strong><small>Rp{{ number_format($bill->amount,0,',','.') }} · dibayar Rp{{ number_format($bill->paid_amount,0,',','.') }}</small></span><span class="badge {{ $bill->status === 'paid' ? '' : 'priority' }}">{{ $bill->status === 'paid' ? 'Lunas' : 'Belum lunas' }}</span></div>
                     @empty<div class="muted">Belum ada tagihan.</div>@endforelse

@@ -28,6 +28,7 @@ class DashboardController extends Controller
         $podium = collect();
         $podiumClasses = collect();
         $podiumClassId = null;
+        $podiumClassLabel = null;
         $attendanceBreakdown = [
             'ontime' => 0,
             'late' => 0,
@@ -48,6 +49,17 @@ class DashboardController extends Controller
 
         if ($user->isRole('student')) {
             $user->loadMissing('pointSummary');
+            $podiumClassId = $user->studentProfile?->school_class_id;
+            if ($podiumClassId) {
+                $podiumClassLabel = SchoolClass::query()->whereKey($podiumClassId)->value('name');
+                $podium = StudentPointSummary::query()
+                    ->with('student.studentProfile.schoolClass')
+                    ->whereHas('student', fn ($query) => $query->where('role', 'student')
+                        ->whereHas('studentProfile', fn ($profile) => $profile->where('school_class_id', $podiumClassId)))
+                    ->where('general_points', '>', 0)
+                    ->orderByDesc('general_points')->orderBy('student_user_id')
+                    ->limit(10)->get();
+            }
         }
 
         if (! in_array($user->role, ['student', 'parent'], true)) {
@@ -184,6 +196,7 @@ class DashboardController extends Controller
         $selectedClassId = $request->integer('class') ?: null;
         $progress = collect();
         $reportGrades = collect();
+        $announcedAssessments = collect();
         $todayAttendance = null;
         $attendanceSetting = null;
 
@@ -223,6 +236,15 @@ class DashboardController extends Controller
 
                 return [$student->id => $assessments->groupBy(fn ($assessment) => $assessment->subject?->name ?? 'Mata pelajaran')];
             });
+
+            if ($user->isRole('student') && $user->studentProfile?->school_class_id) {
+                $announcedAssessments = GradeAssessment::query()
+                    ->with(['subject', 'teacher'])
+                    ->where('school_class_id', $user->studentProfile->school_class_id)
+                    ->where('semester_id', $selectedSemester?->id)
+                    ->whereDate('assessed_on', '>=', today())
+                    ->orderBy('assessed_on')->orderBy('id')->get();
+            }
         }
 
         if ($user->isRole('student')) {
@@ -253,12 +275,14 @@ class DashboardController extends Controller
             'podium' => $podium,
             'podiumClasses' => $podiumClasses,
             'podiumClassId' => $podiumClassId,
+            'podiumClassLabel' => $podiumClassLabel,
             'semesters' => $semesters,
             'selectedSemester' => $selectedSemester,
             'profileClasses' => $profileClasses,
             'selectedClassId' => $selectedClassId,
             'progress' => $progress,
             'reportGrades' => $reportGrades,
+            'announcedAssessments' => $announcedAssessments,
             'todayAttendance' => $todayAttendance,
             'attendanceSetting' => $attendanceSetting,
             'attendanceBreakdown' => $attendanceBreakdown,

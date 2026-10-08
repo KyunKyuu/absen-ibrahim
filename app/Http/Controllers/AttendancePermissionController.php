@@ -8,6 +8,7 @@ use App\Models\SchoolClass;
 use App\Models\Semester;
 use App\Models\StudentClassHistory;
 use App\Models\User;
+use App\Services\PointCalculationService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -186,7 +187,7 @@ class AttendancePermissionController extends Controller
         return back()->with('status', $message);
     }
 
-    public function approve(Request $request, AttendancePermission $permission)
+    public function approve(Request $request, AttendancePermission $permission, PointCalculationService $points)
     {
         $user = $request->user();
         abort_unless($this->canReviewPermission($user, $permission), 403);
@@ -233,6 +234,8 @@ class AttendancePermissionController extends Controller
                     ]);
                 }
             }
+
+            $points->syncRepeatedAbsencePenalty($permission->student);
 
             $permission->update([
                 'status' => 'approved',

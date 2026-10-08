@@ -25,6 +25,7 @@ use App\Models\TeachingAssignment;
 use App\Models\User;
 use App\Services\FinanceService;
 use App\Services\GoogleSheetAccountImportService;
+use App\Services\PointCalculationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -137,7 +138,10 @@ class AdminController extends Controller
             ])
             ->latest('assessed_on')->latest('id')
             ->paginate(20, ['*'], 'grades_page')->withQueryString();
-        $bills = $student->bills()->when($selectedClassId, fn ($query) => $query->where('school_class_id', $selectedClassId))
+        $canViewStudentFinance = $user->canDo('finance.manage') || $isParentOfStudent;
+        $bills = $student->bills()
+            ->when(! $canViewStudentFinance, fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($selectedClassId, fn ($query) => $query->where('school_class_id', $selectedClassId))
             ->with('payments')->latest()->paginate(10, ['*'], 'bills_page')->withQueryString();
         $classHistories = StudentClassHistory::query()->where('student_user_id', $student->id)
             ->whereIn('school_class_id', $availableClassIds)
@@ -148,6 +152,7 @@ class AdminController extends Controller
         return view('students.show', [
             'student' => $student,
             'canManage' => $user->canDo('school.manage'),
+            'canViewStudentFinance' => $canViewStudentFinance,
             'classOptions' => $classOptions,
             'selectedClassId' => $selectedClassId,
             'attendanceMonth' => $attendanceMonth,
@@ -220,7 +225,7 @@ class AdminController extends Controller
         ]);
     }
 
-    public function recordClassAttendance(Request $request, SchoolClass $schoolClass)
+    public function recordClassAttendance(Request $request, SchoolClass $schoolClass, PointCalculationService $points)
     {
         $user = $request->user();
         abort_unless($user->canDo('school.manage') || $schoolClass->homeroom_teacher_id === $user->id, 403);
@@ -269,6 +274,7 @@ class AdminController extends Controller
                         'created_by_user_id' => $user->id,
                     ]);
                 }
+                $points->syncRepeatedAbsencePenalty($student);
             }
         });
 

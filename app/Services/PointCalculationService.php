@@ -7,6 +7,7 @@ use App\Models\StudentClassHistory;
 use App\Models\StudentPointSummary;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Models\Attendance;
 
 class PointCalculationService
 {
@@ -29,6 +30,64 @@ class PointCalculationService
             'late' => 1,
             default => -5,
         };
+    }
+
+    /** Reconcile per-absence points and a repeated-absence sanction for each group of three. */
+    public function syncRepeatedAbsencePenalty(User $student): void
+    {
+        $periodStart = $this->currentClassPeriodStart($student);
+        $absences = Attendance::query()
+            ->where('student_user_id', $student->id)
+            ->where('status', 'absent')
+            ->when($periodStart, fn ($query) => $query->whereDate('attendance_date', '>=', substr($periodStart, 0, 10)))
+            ->orderBy('attendance_date')->orderBy('id')->get();
+
+        $periodAttendanceIds = Attendance::query()
+            ->where('student_user_id', $student->id)
+            ->when($periodStart, fn ($query) => $query->whereDate('attendance_date', '>=', substr($periodStart, 0, 10)))
+            ->pluck('id');
+        $existing = PointTransaction::query()
+            ->where('student_user_id', $student->id)
+            ->where('type', 'attendance')
+            ->where('source_type', Attendance::class)
+            ->whereIn('source_id', $periodAttendanceIds)
+            ->get();
+
+        $expected = [];
+        foreach ($absences->values() as $index => $absence) {
+            $expected[] = [$absence->id, 'Alfa tanpa keterangan', -5];
+            if (($index + 1) % 3 === 0) {
+                $expected[] = [$absence->id, 'Sanksi alfa berulang (setiap 3 kali)', -25];
+            }
+        }
+
+        $remaining = collect($expected)->keyBy(fn ($item) => $item[0].'|'.$item[1]);
+        foreach ($existing as $transaction) {
+            $isAbsencePoint = $transaction->description === 'Alfa tanpa keterangan';
+            $isGroupPenalty = $transaction->description === 'Sanksi alfa berulang (setiap 3 kali)';
+            if ($isAbsencePoint || $isGroupPenalty) {
+                $key = $transaction->source_id.'|'.$transaction->description;
+                $item = $remaining->get($key);
+                if ($item && $transaction->points === $item[2]) {
+                    $remaining->forget($key);
+                } else {
+                    $transaction->delete();
+                }
+            }
+        }
+
+        foreach ($remaining as [$attendanceId, $description, $value]) {
+            PointTransaction::query()->create([
+                'student_user_id' => $student->id,
+                'type' => 'attendance',
+                'points' => $value,
+                'source_type' => Attendance::class,
+                'source_id' => $attendanceId,
+                'description' => $description,
+            ]);
+        }
+
+        $this->refreshSummary($student);
     }
 
     public function record(User $student, string $type, int $points, string $description, ?User $actor = null, ?object $source = null): PointTransaction

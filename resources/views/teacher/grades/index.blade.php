@@ -13,8 +13,8 @@
                 <label>Semester<select name="semester_id" required><option value="">Pilih semester aktif</option>@foreach($semesters->where('is_active', true) as $semester)<option value="{{ $semester->id }}" @selected(old('semester_id') == $semester->id)>{{ $semester->name }} · {{ $semester->academicYear?->name }}</option>@endforeach</select><span class="field-help">Penilaian baru mengikuti semester aktif di Master Data.</span></label>
                     <label>Judul penilaian<input name="title" value="{{ old('title') }}" maxlength="150" placeholder="Contoh: Ulangan Bahasa Inggris — Simple Past Tense" required></label>
                     <div class="form-grid"><label>Jenis<select name="kind" required>@foreach(\App\Models\GradeAssessment::KINDS as $key => $label)<option value="{{ $key }}" @selected(old('kind') === $key)>{{ $label }}</option>@endforeach</select></label><label>Tanggal penilaian<input type="date" name="assessed_on" value="{{ old('assessed_on', today()->toDateString()) }}" required></label></div>
-                    <p class="muted">Sesudah penilaian dibuat, isi nilai setiap siswa pada halaman berikutnya. Nilai akademik dicatat terpisah dari poin karakter/XP.</p>
-                    <button class="btn primary" type="submit">Buat & lanjut isi nilai</button>
+                    <p class="muted">Saat dibuat, judul dan jadwal langsung diinformasikan di dashboard siswa. Siswa hanya menerima informasi dan tidak mengumpulkan tugas melalui aplikasi. Nilai dapat diisi sekarang atau nanti.</p>
+                    <button class="btn primary" type="submit">Buat penugasan & lanjut isi nilai</button>
                 </form>
             </section>
         @endif

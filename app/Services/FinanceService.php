@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 
 class FinanceService
 {
-    public function publishProposal(FinanceProposal $proposal, User $reviewer, ?string $notes = null): int
+    public function publishProposal(FinanceProposal $proposal, ?User $reviewer, ?string $notes = null): int
     {
         return DB::transaction(function () use ($proposal, $reviewer, $notes) {
             $proposal = FinanceProposal::query()->lockForUpdate()->findOrFail($proposal->id);
@@ -42,7 +42,7 @@ class FinanceService
                     'school_class_id' => $proposal->school_class_id,
                     'academic_year_id' => $proposal->academic_year_id,
                     'finance_proposal_id' => $proposal->id,
-                    'created_by_user_id' => $reviewer->id,
+                    'created_by_user_id' => $reviewer?->id ?? $proposal->proposed_by_user_id,
                     'title' => $proposal->title,
                     'amount' => $amount,
                     'due_date' => $proposal->due_date,
@@ -50,7 +50,7 @@ class FinanceService
             }
 
             $proposal->update([
-                'reviewed_by_user_id' => $reviewer->id,
+                'reviewed_by_user_id' => $reviewer?->id,
                 'review_notes' => $notes,
                 'status' => 'published',
                 'reviewed_at' => now(),
@@ -82,14 +82,26 @@ class FinanceService
         SchoolFeeType $feeType,
         SchoolClass $schoolClass,
         string $period,
-        int $amount,
+        array $amounts,
         ?string $dueDate,
         User $actor,
     ): int {
-        return DB::transaction(function () use ($feeType, $schoolClass, $period, $amount, $dueDate, $actor) {
+        return DB::transaction(function () use ($feeType, $schoolClass, $period, $amounts, $dueDate, $actor) {
             $created = 0;
+            $students = $this->studentsInClass($schoolClass->id)->keyBy('id');
+            $requestedIds = collect(array_keys($amounts))->map(fn ($id) => (int) $id);
+            if ($requestedIds->diff($students->keys())->isNotEmpty()) {
+                throw ValidationException::withMessages(['amounts' => 'Daftar siswa tidak sesuai dengan kelas yang dipilih. Muat ulang halaman.']);
+            }
 
-            foreach ($this->studentsInClass($schoolClass->id) as $student) {
+            foreach ($amounts as $studentId => $amount) {
+                if ($amount === null || $amount === '') {
+                    continue;
+                }
+                $student = $students->get((int) $studentId);
+                if (! $student) {
+                    continue;
+                }
                 $bill = StudentBill::query()->firstOrCreate([
                     'student_user_id' => $student->id,
                     'school_fee_type_id' => $feeType->id,
@@ -99,7 +111,7 @@ class FinanceService
                     'academic_year_id' => $schoolClass->academic_year_id,
                     'created_by_user_id' => $actor->id,
                     'title' => $feeType->name.' - '.$period,
-                    'amount' => $amount,
+                    'amount' => (int) $amount,
                     'due_date' => $dueDate,
                 ]);
 

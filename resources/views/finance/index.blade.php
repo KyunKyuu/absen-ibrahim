@@ -9,8 +9,8 @@
         'payments' => ['Riwayat pembayaran', 'Lihat seluruh transaksi pembayaran dan status verifikasinya.'],
     ];
     $teacherPages = [
-        'bills' => ['Ajukan biaya kelas', 'Kirim usulan kegiatan atau tagihan kelas kepada tata usaha.'],
-        'proposals' => ['Riwayat & Pengumpulan Usulan', 'Pantau status pengajuan biaya kelas dan kelola penyetoran dari siswa.'],
+        'bills' => ['Keuangan kelas', 'Ajukan biaya dan pantau tagihan kolektif siswa kelas Anda.'],
+        'proposals' => ['Keuangan kelas', 'Pantau tagihan kolektif dan catat pembayaran siswa kelas Anda.'],
     ];
     $payerPages = [
         'bills' => [$user->hasRole('parent') ? 'Tagihan anak' : 'Tagihan saya', 'Lihat sisa tagihan dan kirim konfirmasi pembayaran.'],
@@ -93,10 +93,17 @@
                     <label>Nominal<input name="amount" type="number" min="1" value="{{ old('amount') }}" required></label>
                     <label>Jatuh tempo<input name="due_date" type="date" value="{{ old('due_date') }}"></label>
                 </div>
-                <button class="btn primary" type="submit" @disabled($classes->isEmpty())>Ajukan ke tata usaha</button>
+                <button class="btn primary" type="submit" @disabled($classes->isEmpty())>Kirim usulan biaya</button>
                 @if($classes->isEmpty())<div class="alert errors" style="margin:0">Admin belum menetapkan kelas untuk akun Anda.</div>@endif
+                <p class="field-help">Usulan kolektif langsung diterbitkan untuk kelas Anda. Jenis per siswa tetap menunggu persetujuan TU.</p>
             </form>
         </section>
+        @if($bills->count() > 0)
+            <section class="panel" style="margin-top:16px"><h2>Tagihan kolektif kelas</h2><div class="table-scroll"><table>
+                <thead><tr><th>Siswa</th><th>Tagihan</th><th>Total</th><th>Terbayar</th><th>Sisa</th><th>Status</th></tr></thead>
+                <tbody>@foreach($bills as $bill)<tr><td>{{ $bill->student?->name }}</td><td>{{ $bill->title }}</td><td>Rp{{ number_format($bill->amount, 0, ',', '.') }}</td><td>Rp{{ number_format($bill->paid_amount, 0, ',', '.') }}</td><td>Rp{{ number_format($bill->outstanding_amount, 0, ',', '.') }}</td><td>{{ $bill->status }}</td></tr>@endforeach</tbody>
+            </table></div>{{ $bills->links() }}</section>
+        @endif
     @elseif(! $canManage && $section === 'proposals')
         <div class="stack">
             @if($classes->isNotEmpty())
@@ -112,7 +119,8 @@
                                 <label>Nominal<input name="amount" type="number" min="1" value="{{ old('amount') }}" required></label>
                                 <label>Jatuh tempo<input name="due_date" type="date" value="{{ old('due_date') }}"></label>
                             </div>
-                            <button class="btn primary" type="submit">Ajukan ke tata usaha</button>
+                            <button class="btn primary" type="submit">Kirim usulan biaya</button>
+                            <p class="field-help">Usulan kolektif langsung diterbitkan untuk kelas Anda. Jenis per siswa tetap menunggu persetujuan TU.</p>
                         </form>
                     </div>
                 </details>
@@ -131,6 +139,8 @@
                                 <span class="badge">Menunggu Persetujuan TU</span>
                             @elseif($proposal->status === 'rejected')
                                 <span class="badge priority">Ditolak TU</span>
+                            @elseif($proposal->billing_mode === 'collective')
+                                <span class="badge" style="background:#e6f4ea;color:#137333">Diterbitkan otomatis oleh wali kelas</span>
                             @else
                                 <span class="badge" style="background:#e6f4ea;color:#137333">Disetujui TU (Pengumpulan Aktif)</span>
                             @endif
@@ -156,9 +166,11 @@
                             <div class="metric"><span class="muted">Progres Lunas</span><strong style="font-size:18px">{{ $proposal->paid_bills_count }}/{{ $proposal->total_bills_count }} siswa ({{ $percent }}%)</strong></div>
                         </div>
 
-                        <div class="alert" style="margin-bottom:14px;background:#e8f0fe;border-color:#d2e3fc;color:#174ea6">
-                            ℹ️ Penyetoran uang dilakukan langsung ke Anda ({{ $proposal->proposerRoleLabel() }}). Catat pembayaran siswa yang menyerahkan uang secara tunai atau transfer di bawah ini.
-                        </div>
+                        @if(! $canManage)
+                            <div class="alert" style="margin-bottom:14px;background:#e8f0fe;border-color:#d2e3fc;color:#174ea6">
+                                ℹ️ Siswa menyetor kepada wali kelas. Wali kelas mencatat dan memverifikasi pembayaran; TU dan superadmin hanya memantau.
+                            </div>
+                        @endif
 
                         <div class="table-scroll"><table>
                             <thead><tr><th>Siswa</th><th>NIS</th><th>Tagihan</th><th>Terbayar</th><th>Sisa</th><th>Status</th><th>Penyetoran & Verifikasi</th></tr></thead>
@@ -181,6 +193,9 @@
                                             @endif
                                         </td>
                                         <td>
+                                            @if($canManage && $proposal->billing_mode === 'collective')
+                                                <span class="muted">Pantauan saja</span>
+                                            @else
                                             @if($pendingP)
                                                 <div class="actions">
                                                     @if($pendingP->proof_path)
@@ -212,6 +227,7 @@
                                             @else
                                                 <span class="muted" style="font-size:12px">Lunas</span>
                                             @endif
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
@@ -242,25 +258,33 @@
                     <td>{{ $bill->schoolClass?->name ?? '-' }}</td>
                     <td>Rp {{ number_format($bill->amount, 0, ',', '.') }}</td><td>Rp {{ number_format($bill->paid_amount, 0, ',', '.') }}</td><td>Rp {{ number_format($bill->outstanding_amount, 0, ',', '.') }}</td>
                     <td><span class="badge {{ $bill->is_arrears ? 'priority' : '' }}">{{ $bill->is_arrears && $bill->status !== 'paid' ? 'tunggakan / ' : '' }}{{ $bill->status }}</span></td>
-                    <td>@if($bill->status !== 'paid')<a class="btn small" href="{{ route('finance.record-payment', ['bill' => $bill->id]) }}">Catat pembayaran</a>@else<span class="muted">Lunas</span>@endif</td>
+                    <td>@if($bill->proposal?->billing_mode === 'collective')<span class="muted">Dipantau wali kelas</span>@elseif($bill->status !== 'paid')<a class="btn small" href="{{ route('finance.record-payment', ['bill' => $bill->id]) }}">Catat pembayaran</a>@else<span class="muted">Lunas</span>@endif</td>
                 </tr>@empty<tr><td colspan="8"><div class="empty-state">Belum ada tagihan.</div></td></tr>@endforelse</tbody>
             </table></div><div style="margin-top:14px">{{ $bills->links() }}</div>
         </section>
     @elseif($section === 'issue')
         <section class="panel" style="max-width:800px">
+            <form method="get" action="{{ route('finance.issue') }}" style="margin-bottom:20px">
+                <label>Pilih kelas untuk menampilkan daftar siswa<select name="school_class_id" onchange="this.form.submit()" required>
+                    @foreach($classes as $class)<option value="{{ $class->id }}" @selected((int) $selectedClassId === $class->id)>{{ $class->name }} · {{ $class->academicYear?->name ?? 'Tahun ajaran' }}</option>@endforeach
+                </select></label>
+            </form>
             <form class="stack" method="post" action="{{ route('finance.bills.issue') }}">@csrf
+                <input type="hidden" name="school_class_id" value="{{ $selectedClassId }}">
                 <div class="form-grid">
-                    <label>Jenis tagihan<select name="school_fee_type_id" id="fee-type" required>@foreach($feeTypes as $type)<option value="{{ $type->id }}" data-amount="{{ $type->default_amount }}">{{ $type->name }}</option>@endforeach</select></label>
-                    <label>Kelas<select name="school_class_id" required>@foreach($classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></label>
-                    <label>Periode<input name="billing_period" placeholder="2026-09 atau 2026/2027" required></label>
-                    <label>Nominal per siswa<input id="bill-amount" name="amount" type="number" min="1" value="{{ $feeTypes->first()?->default_amount }}" required></label>
+                    <label>Jenis tagihan<select name="school_fee_type_id" id="fee-type" required>@foreach($feeTypes as $type)<option value="{{ $type->id }}">{{ $type->name }}</option>@endforeach</select></label>
+                    <label>Periode / gelombang<input name="billing_period" value="{{ old('billing_period') }}" placeholder="2026-09, 2026/2027, atau Gelombang 1" required><span class="field-help">Untuk tagihan sekali seperti DSP, isi nama gelombang. Periode SPP tetap gunakan YYYY-MM.</span></label>
                     <label>Jatuh tempo<input name="due_date" type="date"></label>
                 </div>
-                <button class="btn primary" type="submit" @disabled($feeTypes->isEmpty() || $classes->isEmpty())>Terbitkan ke semua siswa</button>
+                <div class="topbar"><h2 style="margin:0">Isi nominal satu per satu · {{ $classes->firstWhere('id', $selectedClassId)?->name ?? 'Pilih kelas' }}</h2></div>
+                <div class="table-scroll"><table><thead><tr><th>Siswa / NIS</th><th>Tagihan (Rp)</th></tr></thead><tbody>
+                    @forelse($students as $student)<tr><td><strong>{{ $student->name }}</strong><br><span class="muted">NIS {{ $student->studentProfile?->nis ?: '-' }}</span></td><td><input class="student-bill-amount" name="amounts[{{ $student->id }}]" type="number" min="1" value="{{ old('amounts.'.$student->id) }}" placeholder="Kosongkan jika tidak ditagih" aria-label="Nominal tagihan {{ $student->name }}"></td></tr>
+                    @empty<tr><td colspan="2" class="muted">Kelas ini belum memiliki siswa aktif.</td></tr>@endforelse
+                </tbody></table></div>
+                <button class="btn primary" type="submit" @disabled($feeTypes->isEmpty() || $classes->isEmpty() || $students->isEmpty())>Terbitkan tagihan yang diisi</button>
                 @if($feeTypes->isEmpty())<p class="muted">Buat jenis tagihan terlebih dahulu sebelum menerbitkan tagihan.</p>@endif
             </form>
         </section>
-        <script>const feeType=document.getElementById('fee-type');feeType?.addEventListener('change',()=>{document.getElementById('bill-amount').value=feeType.selectedOptions[0]?.dataset.amount??'';});</script>
     @elseif($section === 'fee-types')
         <div class="grid two">
             <section class="panel"><h2>Tambah jenis tagihan</h2><form class="stack" method="post" action="{{ route('finance.fee-types.store') }}">@csrf
